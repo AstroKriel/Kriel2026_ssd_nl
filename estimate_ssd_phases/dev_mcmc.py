@@ -4,16 +4,17 @@
 import numpy
 import emcee
 import corner
-import matplotlib.pyplot as mpl_plot
-from loki.ww_plots import plot_manager
-from loki.ww_io import flash_data
-import utils # local
+import random
+from jormi.ww_plots import plot_manager
+from jormi.ww_io import flash_data
+import utils
 
 
 ## ###############################################################
 ## HELPER FUNCTIONS
 ## ###############################################################
-def model(time, init_energy, gamma, transition_time):
+def model(time, params):
+  init_energy, gamma, transition_time = params
   return numpy.where(
     time < transition_time,
     init_energy + gamma * time,
@@ -29,34 +30,47 @@ def check_params_are_valid(params):
 
 def log_likelihood(params, time, measured_energy):
   if not check_params_are_valid(params): return -numpy.inf
-  modelled_energy = model(time, *params)
-  return -0.5 * numpy.sum(numpy.square(measured_energy - modelled_energy))
+  estimated_energy = model(time, params)
+  return -0.5 * numpy.sum(numpy.square(measured_energy - estimated_energy))
 
 def log_prior(params):
   if not check_params_are_valid(params): return -numpy.inf
   return 0 # uniform prior
 
 def log_posterior(params, time, measured_energy):
-  log_prior_value      = log_prior(params)
+  log_prior_value = log_prior(params)
   if not numpy.isfinite(log_prior_value): return -numpy.inf
   log_likelihood_value = log_likelihood(params, time, measured_energy)
   return log_prior_value + log_likelihood_value
 
-def estimate_params(time, measured_energy, params_truth):
+def estimate_params(time, measured_energy, init_params):
   num_walkers     = 100
   num_steps       = 5000
   burn_in_steps   = 1000
-  initial_guess   = [-10, 1e-2, 100]
-  num_params      = len(initial_guess)
-  param_positions = initial_guess + 1e-4 * numpy.random.randn(num_walkers, num_params)
+  num_params      = len(init_params)
+  param_positions = numpy.array(init_params) + 1e-4 * numpy.random.randn(num_walkers, num_params)
   sampler = emcee.EnsembleSampler(num_walkers, num_params, log_posterior, args=(time, measured_energy))
   sampler.run_mcmc(param_positions, num_steps)
   samples = sampler.get_chain(discard=burn_in_steps, thin=10, flat=True)
-  fig_corner = corner.corner(samples, truths=params_truth)
-  fig_corner.savefig("mcmc_corner_plot.png")
-  mpl_plot.close(fig_corner)
   init_energy, growth_rate, transition_time = numpy.median(samples, axis=0)
+  save_corner_plot(samples)
+  plot_chain_evolution(sampler)
   return [ init_energy, growth_rate, transition_time ]
+
+def save_corner_plot(samples):
+  fig = corner.corner(samples)
+  plot_manager.save_figure(fig, "dev_mcmc_corner_plot.png")
+
+def plot_chain_evolution(sampler):
+  chain = sampler.get_chain()
+  _, num_walkers, num_params = chain.shape
+  fig, axs = plot_manager.create_figure(num_rows=num_params, axis_shape=(6, 10), share_x=True)
+  for param_index in range(num_params):
+    ax = axs[param_index]
+    for walker_index in range(num_walkers):
+      ax.plot(chain[:, walker_index, param_index], alpha=0.3, lw=0.5)
+  axs[-1].set_xlabel("steps")
+  plot_manager.save_figure(fig, "dev_mcmc_chain_evolution.png")
 
 def generate_data(num_points, time_bounds, init_energy, growth_rate, transition_time):
   time = utils.generate_uniform_domain(
@@ -75,7 +89,7 @@ def generate_data(num_points, time_bounds, init_energy, growth_rate, transition_
 def load_data():
   time_start = 20.0
   time, measured_energy = flash_data.read_vi_data(
-    directory    = "/scratch/jh2/nk7952/Re1500/Mach0.1/Pm1/144",
+    directory    = "/scratch/jh2/nk7952/Re500/Mach0.3/Pm1/576",
     dataset_name = "mag",
     time_start   = time_start,
   )
@@ -89,24 +103,31 @@ def load_data():
 ## ###############################################################
 def main():
   fig, ax = plot_manager.create_figure(axis_shape=(6, 10))
-  init_energy      = -14
-  growth_rate     = 0.05
-  transition_time = 220
+  init_energy     = -13
+  growth_rate     = 9/100
+  transition_time = 120
+  true_params = [ init_energy, growth_rate, transition_time ]
   # time, measured_energy = generate_data(100, [0, 500], init_energy, growth_rate, transition_time)
   time, measured_energy = load_data()
-  true_params = [ init_energy, growth_rate, transition_time ]
-  estimated_params = estimate_params(time, measured_energy, true_params)
-  [
-    print(f"{param:.3f}")
-    for param in estimated_params
+  init_params = [
+    random.uniform(0, 3) * init_energy,
+    random.uniform(0, 3) * growth_rate,
+    random.uniform(0, 3) * transition_time
   ]
-  # estimated_params = [-14, 0.05, 220]
-  modelled_energy  = model(time, *estimated_params)
+  mcmc_params = estimate_params(time, measured_energy, init_params)
+  print([
+    f"{param:.3f}"
+    for param in mcmc_params
+  ])
+  estimated_energy = model(time, mcmc_params)
+  my_estimated_energy = model(time, true_params)
   ax.plot(time, measured_energy, color="blue", marker="o", ms=5, ls="", zorder=3, label="measured values")
-  ax.plot(time, modelled_energy, color="red", marker="o", ms=5, ls="-", lw=2, zorder=3, label="MCMC estimated model")
+  ax.plot(time, estimated_energy, color="red", marker="o", ms=5, ls="-", lw=2, zorder=3, label="MCMC estimated model")
+  ax.plot(time, my_estimated_energy, color="green", marker="o", ms=5, ls="-", lw=2, zorder=3, label="my estimated model")
   ax.set_xlabel("time")
   ax.set_ylabel("energy")
-  plot_manager.save_figure(fig, "estimate_using_mcmc.png")
+  ax.legend(loc="lower right")
+  plot_manager.save_figure(fig, "dev_estimate_using_mcmc.png")
 
 
 ## ###############################################################

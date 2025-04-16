@@ -196,6 +196,29 @@ wheels = [
 ]
 
 [[package]]
+name = "jormi"
+version = "0.1.0"
+source = { directory = "../../sindri/jormi" }
+dependencies = [
+    { name = "cmasher" },
+    { name = "h5py" },
+    { name = "matplotlib" },
+    { name = "mpi4py" },
+    { name = "numpy" },
+    { name = "scipy" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "cmasher", specifier = ">=1.9.2" },
+    { name = "h5py", specifier = ">=3.13.0" },
+    { name = "matplotlib", specifier = ">=3.10.1" },
+    { name = "mpi4py", specifier = ">=4.0.3" },
+    { name = "numpy", specifier = ">=2.2.4" },
+    { name = "scipy", specifier = ">=1.15.2" },
+]
+
+[[package]]
 name = "kiwisolver"
 version = "1.4.8"
 source = { registry = "https://pypi.org/simple" }
@@ -262,14 +285,14 @@ wheels = [
 ]
 
 [[package]]
-name = "kriel2025-ssd-sat"
+name = "kriel-2025-ssd-nl"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "bifrost" },
     { name = "corner" },
     { name = "emcee" },
-    { name = "loki" },
+    { name = "jormi" },
     { name = "vegtamr" },
 ]
 
@@ -278,7 +301,7 @@ requires-dist = [
     { name = "bifrost", directory = "../../sindri/bifrost" },
     { name = "corner", specifier = ">=2.2.3" },
     { name = "emcee", specifier = ">=3.1.6" },
-    { name = "loki", directory = "../../sindri/loki" },
+    { name = "jormi", directory = "../../sindri/jormi" },
     { name = "vegtamr", directory = "../../sindri/vegtamr" },
 ]
 
@@ -292,27 +315,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/6f/6b/c875b30a1ba490860c93da4cabf479e03f584eba06fe5963f6f6644653d8/lazy_loader-0.4.tar.gz", hash = "sha256:47c75182589b91a4e1a85a136c074285a5ad4d9f39c63e0d7fb76391c4574cd1", size = 15431 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/83/60/d497a310bde3f01cb805196ac61b7ad6dc5dcf8dce66634dc34364b20b4f/lazy_loader-0.4-py3-none-any.whl", hash = "sha256:342aa8e14d543a154047afb4ba8ef17f5563baad3fc610d7b15b213b0f119efc", size = 12097 },
-]
-
-[[package]]
-name = "loki"
-version = "0.1.0"
-source = { directory = "../../sindri/loki" }
-dependencies = [
-    { name = "cmasher" },
-    { name = "h5py" },
-    { name = "matplotlib" },
-    { name = "numpy" },
-    { name = "scipy" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "cmasher", specifier = ">=1.9.2" },
-    { name = "h5py", specifier = ">=3.13.0" },
-    { name = "matplotlib", specifier = ">=3.10.1" },
-    { name = "numpy", specifier = ">=2.2.4" },
-    { name = "scipy", specifier = ">=1.15.2" },
 ]
 
 [[package]]
@@ -356,6 +358,17 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/c9/db/b05bf463689134789b06dea85828f8ebe506fa1e37593f723b65b86c9582/matplotlib-3.10.1-cp313-cp313t-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:a3dfb036f34873b46978f55e240cff7a239f6c4409eac62d8145bad3fc6ba5a3", size = 8613864 },
     { url = "https://files.pythonhosted.org/packages/c2/04/41ccec4409f3023a7576df3b5c025f1a8c8b81fbfe922ecfd837ac36e081/matplotlib-3.10.1-cp313-cp313t-musllinux_1_2_x86_64.whl", hash = "sha256:dc6ab14a7ab3b4d813b88ba957fc05c79493a037f54e246162033591e770de6f", size = 9409487 },
     { url = "https://files.pythonhosted.org/packages/ac/c2/0d5aae823bdcc42cc99327ecdd4d28585e15ccd5218c453b7bcd827f3421/matplotlib-3.10.1-cp313-cp313t-win_amd64.whl", hash = "sha256:bc411ebd5889a78dabbc457b3fa153203e22248bfa6eedc6797be5df0164dbf9", size = 8134832 },
+]
+
+[[package]]
+name = "mpi4py"
+version = "4.0.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/0d/b6/833caa35145efa52c698c50bc76dd9cd2d30527193a9b54004a76c9d99b4/mpi4py-4.0.3.tar.gz", hash = "sha256:de2710d73e25e115865a3ab63d34a54b2d8608b724f761c567b6ad58dd475609", size = 466338 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d7/3e/6b26012cc62a29b294fbce135fb0a107a00af05e69cfd69ee23546d5c073/mpi4py-4.0.3-cp311-cp311-win_amd64.whl", hash = "sha256:26d9e70081f3c69c74c81306b6ad33918b710980bd1732ab577702909b2db3e8", size = 1597891 },
+    { url = "https://files.pythonhosted.org/packages/6d/1e/d5be898722f74faf0b19c60ed3783b6b59bf0f1056f6d0cdc65ccae6ab8f/mpi4py-4.0.3-cp312-cp312-win_amd64.whl", hash = "sha256:b709c410ab5f3f3f12f44514a18fb392e49b9e3185acb11e0dd8557a4ad1fe40", size = 1725596 },
+    { url = "https://files.pythonhosted.org/packages/03/d3/b7cfecd793597b18d81dba63a5d9a1ff022a36417be7dead7b5565cd8fc9/mpi4py-4.0.3-cp313-cp313-win_amd64.whl", hash = "sha256:7b026914b498dd40a28eb1d78494f266446f22894c0e91500f5f035daefb3fda", size = 1724108 },
 ]
 
 [[package]]

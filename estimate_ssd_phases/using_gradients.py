@@ -48,7 +48,7 @@ def main():
     time_data   = time_interp,
     energy_data = log10_energy_interp_filtered,
     color       = "red",
-    label       = r"sampling in $\log_{10}E_{\rm mag}$ + filtering"
+    label       = r"sampling + filtering"
   )
   plot_data(
     axs         = axs[:,1],

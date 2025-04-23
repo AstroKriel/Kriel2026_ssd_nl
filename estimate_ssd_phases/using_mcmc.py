@@ -4,7 +4,6 @@
 import numpy
 import emcee
 import corner
-from scipy.special import expit
 from jormi.ww_io import flash_data
 from jormi.ww_data import interpolate_data
 from jormi.ww_plots import plot_manager
@@ -14,13 +13,19 @@ from jormi.ww_plots import plot_manager
 ## HELPER FUNCTIONS
 ## ###############################################################
 def check_params_are_valid(fit_params, known_params, debug_mode=False):
-  time_nl_start, time_sat_start = fit_params
-  max_time, init_energy, sat_energy, gamma, beta = known_params
+  (log10_init_energy, start_nl_phase, start_sat_phase, log10_alpha) = fit_params
+  (max_time, sat_energy, gamma, beta) = known_params
   errors = []
-  if not (10 < time_nl_start < 0.85 * max_time):
-    errors.append(f"`time_nl_start` ({time_nl_start}) must be >10 and <85% of max_time.")
-  if not (time_nl_start < time_sat_start < max_time):
-    errors.append(f"`time_sat_start` ({time_sat_start}) must be > time_nl_start and < max_time.")
+  if not (-30 < log10_init_energy < -2):
+    errors.append("`log10_init_energy` should be between -30 and -2.")
+  if not (10 < start_nl_phase < 0.85 * max_time):
+    errors.append(f"`start_nl_phase` ({start_nl_phase}) must be >10 and <85% of max_time.")
+  if not (start_nl_phase < start_sat_phase < max_time):
+    errors.append(f"`start_sat_phase` ({start_sat_phase}) must be > start_nl_phase and < max_time.")
+  if not (start_sat_phase - start_nl_phase > 10):
+    errors.append(f"non-linear phase duration should be at least 10 code units.")
+  if not (-6 < log10_alpha < 0):
+    errors.append(f"`log10_alpha` ({log10_alpha}) must be in (1e-5, 1).")
   if len(errors) > 0:
     if debug_mode: print("\n".join(errors))
     return False
@@ -53,18 +58,23 @@ class MCMCModel:
 
   def model1(self, fit_params):
     time = numpy.array(self.time)
-    (time_nl_start, time_sat_start) = fit_params
-    (max_time, init_energy, sat_energy, gamma, beta) = self.known_params
+    (log10_init_energy, start_nl_phase, start_sat_phase, log10_alpha) = fit_params
+    (max_time, sat_energy, gamma, beta) = self.known_params
+    init_energy = 10**log10_init_energy
+    alpha = 10**log10_alpha
     ## exponential phase
     energy_exp_phase = init_energy * numpy.exp(gamma * time)
-    energy_exp_phase_end = init_energy * numpy.exp(gamma * time_nl_start)
-    derivative_exp_phase_end = init_energy * gamma * numpy.exp(gamma * time_nl_start) / beta
-    energy_nl_phase = energy_exp_phase_end + derivative_exp_phase_end * numpy.maximum(time - time_nl_start, 0)**beta
+    ## polynomial phase
+    final_exp_energy = init_energy * numpy.exp(gamma * start_nl_phase)
+    # alpha = (sat_energy - final_exp_energy) / (start_sat_phase - start_nl_phase)**beta
+    # alpha = init_energy * gamma * numpy.exp(gamma * start_nl_phase)
+    energy_nl_phase = final_exp_energy + alpha * numpy.maximum(time - start_nl_phase, 0)**beta
     ## saturated phase
-    energy_sat_phase = derivative_exp_phase_end * (time_sat_start - time_nl_start)**beta
+    final_nl_energy  = final_exp_energy + alpha * (start_sat_phase - start_nl_phase)**beta
+    energy_sat_phase = numpy.full_like(time, final_nl_energy)
     ## logistic sigmoid function for smooth transitions
-    f1 = expit(-(time - time_nl_start))
-    f2 = expit(-(time - time_sat_start))
+    f1 = 1 / (1 + numpy.exp(time - start_nl_phase))
+    f2 = 1 / (1 + numpy.exp(time - start_sat_phase))
     weights_exp_phase = f1
     weights_nl_phase  = f2 - f1
     weights_sat_phase = 1 - f2
@@ -74,28 +84,29 @@ class MCMCModel:
 
   def model2(self, fit_params):
     time = numpy.array(time)
-    (time_nl_start, time_sat_start) = fit_params
-    (max_time, init_energy, sat_energy, gamma, beta) = self.known_params
+    (log10_init_energy, start_nl_phase, start_sat_phase) = fit_params
+    (max_time, sat_energy, gamma, beta) = self.known_params
+    init_energy = 10**log10_init_energy
     ## mask different ssd phases
-    mask_exp_phase = time <= time_nl_start
-    mask_nl_phase  = (time_nl_start < time) & (time <= time_sat_start)
-    mask_sat_phase = time_sat_start < time
+    mask_exp_phase = time <= start_nl_phase
+    mask_nl_phase  = (start_nl_phase < time) & (time <= start_sat_phase)
+    mask_sat_phase = start_sat_phase < time
     ## compute energy in different ssd phases
-    alpha = (sat_energy - init_energy * numpy.exp(gamma * time_nl_start)) / (time_sat_start - time_nl_start)**beta
+    alpha = (sat_energy - init_energy * numpy.exp(gamma * start_nl_phase)) / (start_sat_phase - start_nl_phase)**beta
     energy = numpy.zeros_like(time)
     energy[mask_exp_phase] = init_energy * numpy.exp(gamma * time[mask_exp_phase])
-    energy[mask_nl_phase]  = init_energy * numpy.exp(gamma * time_nl_start) * (1 + time[mask_nl_phase] - time_nl_start) + alpha * (time[mask_nl_phase] - time_nl_start)**beta
-    energy[mask_sat_phase] = init_energy * numpy.exp(gamma * time_nl_start) * (1 + time_sat_start - time_nl_start) + alpha * (time_sat_start - time_nl_start)**beta
+    energy[mask_nl_phase]  = init_energy * numpy.exp(gamma * start_nl_phase) * (1 + time[mask_nl_phase] - start_nl_phase) + alpha * (time[mask_nl_phase] - start_nl_phase)**beta
+    energy[mask_sat_phase] = init_energy * numpy.exp(gamma * start_nl_phase) * (1 + start_sat_phase - start_nl_phase) + alpha * (start_sat_phase - start_nl_phase)**beta
     return energy
 
-  def log_likelihood(self, fit_params, nl_weight=10.0):
+  def _log_likelihood(self, fit_params, nl_weight=3.0):
     if not check_params_are_valid(fit_params, self.known_params):
       return -numpy.inf
     estimated_energy = self.model1(fit_params)
     if not numpy.all(numpy.isfinite(estimated_energy)):
       return -numpy.inf
-    (time_nl_start, time_sat_start) = fit_params
-    mask_nl_phase = (self.time > time_nl_start) & (self.time <= time_sat_start)
+    (log10_init_energy, start_nl_phase, start_sat_phase, log10_alpha) = fit_params
+    mask_nl_phase = (self.time > start_nl_phase) & (self.time <= start_sat_phase)
     weights = numpy.ones_like(self.time, dtype=float)
     weights[mask_nl_phase] = nl_weight
     estimated_energy = numpy.clip(estimated_energy, 1e-12, None)
@@ -103,15 +114,15 @@ class MCMCModel:
     log_diff = numpy.log10(measured_energy) - numpy.log10(estimated_energy)
     return -0.5 * numpy.sum(weights * numpy.square(log_diff))
 
-  def log_prior(self, fit_params):
+  def _log_prior(self, fit_params):
     if not check_params_are_valid(fit_params, self.known_params):
       return -numpy.inf
     return 0
   
-  def log_posterior(self, fit_params):
-    log_prior_value = self.log_prior(fit_params)
+  def _log_posterior(self, fit_params):
+    log_prior_value = self._log_prior(fit_params)
     if not numpy.isfinite(log_prior_value): return -numpy.inf
-    log_likelihood_value = self.log_likelihood(fit_params)
+    log_likelihood_value = self._log_likelihood(fit_params)
     return log_prior_value + log_likelihood_value
 
   def estimate_params_with_mcmc(
@@ -123,7 +134,7 @@ class MCMCModel:
     ):
     num_params = len(initial_guess)
     param_positions = numpy.array(initial_guess) + 1e-4 * numpy.random.randn(num_walkers, num_params)
-    sampler = emcee.EnsembleSampler(num_walkers, num_params, self.log_posterior)
+    sampler = emcee.EnsembleSampler(num_walkers, num_params, self._log_posterior)
     sampler.run_mcmc(param_positions, num_steps)
     samples = sampler.get_chain(discard=burn_in_steps, thin=10, flat=True)
     return numpy.median(samples, axis=0), sampler, samples
@@ -172,18 +183,19 @@ def main():
   time, measured_energy = load_data()
   ## parameters for known constants
   max_time        = numpy.max(time)
-  init_energy     = measured_energy[0]
+  # log10_init_energy     = measured_energy[0]
   num_points      = len(measured_energy)
   sat_start_index = int(0.75 * num_points)
   exp_end_index   = int(0.25 * num_points)
   sat_energy      = numpy.median(measured_energy[sat_start_index:])
   gamma           = numpy.median(numpy.gradient(numpy.log(measured_energy[:exp_end_index]), time[:exp_end_index]))
   ## estimate parameters using MCMC
-  for beta in [1.0, 2.0]:
-    known_params = (max_time, init_energy, sat_energy, gamma, beta)
+  for beta in [1.0, 1.5, 2.0]:
+    known_params = (max_time, sat_energy, gamma, beta)
     mcmc_model = MCMCModel(time, measured_energy, known_params)
-    initial_guess = [0.25 * max_time, 0.75 * max_time]
+    initial_guess = [-20, 0.25 * max_time, 0.75 * max_time, -2]
     estimated_params, sampler, samples = mcmc_model.estimate_params_with_mcmc(initial_guess)
+    print(estimated_params)
     ## MCMC diagnostic plots
     plot_manager = PlotManager()
     plot_manager.plot_mcmc_chain_evolution(sampler, beta)
@@ -196,14 +208,14 @@ def main():
     axs[0].plot(time, mcmc_estimated_energy, color="red", label="MCMC fit")
     axs[1].plot(time, numpy.log10(mcmc_estimated_energy), color="red")
     for ax in list(axs):
-      ax.axvline(x=estimated_params[0], color="black", ls="--")
       ax.axvline(x=estimated_params[1], color="black", ls="--")
+      ax.axvline(x=estimated_params[2], color="black", ls="--")
     residuals = numpy.log10(measured_energy) - numpy.log10(mcmc_estimated_energy)
     axs[2].plot(time, residuals, color="red", label="residuals")
     axs[2].axhline(y=0, color="black", ls="--")
     axs[0].set_ylabel(r"$E_{\rm mag}$")
     axs[1].set_ylabel(r"$\log_{10}(E_{\rm mag})$")
-    axs[2].set_ylabel(r"${\rm d} \log_{10}(E_{\rm mag}) / {\rm d} t$")
+    axs[2].set_ylabel(r"residual of $\log_{10}(E_{\rm mag})$")
     axs[-1].set_xlabel("t")
     plot_manager.save_figure(fig, f"mcmc_results_beta={beta}.png")
 

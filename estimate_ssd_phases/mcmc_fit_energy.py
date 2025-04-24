@@ -217,7 +217,7 @@ def main():
     axs[1].set_ylabel(r"$\log_{10}(E_{\rm mag})$")
     axs[2].set_ylabel(r"residual of $\log_{10}(E_{\rm mag})$")
     axs[-1].set_xlabel("t")
-    plot_manager.save_figure(fig, f"mcmc_results_beta={beta}.png")
+    plot_manager.save_figure(fig, f"mcmc_result_beta={beta}.png")
 
 
 ## ###############################################################

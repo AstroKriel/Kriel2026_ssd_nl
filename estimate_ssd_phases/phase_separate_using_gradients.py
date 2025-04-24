@@ -47,7 +47,7 @@ def main():
     # directory    = "/scratch/jh2/nk7952/Re1500/Mach5/Pm1/576",
     directory    = "/scratch/jh2/nk7952/Re1500/Mach2/Pm1/576",
     dataset_name = "mag",
-    start_time   = 1.0,
+    # start_time   = 1.0,
   )
   log10_energy_raw = numpy.log10(energy_raw)
   axs[0,0].plot(time_raw, log10_energy_raw, color="blue", marker="o", ms=5, zorder=3, label="raw data")
@@ -132,7 +132,7 @@ def main():
   axs[2,1].set_xlabel(r"$t$")
   axs[1,1].axhline(y=0, ls="--", color="black")
   axs[2,1].axhline(y=0, ls="--", color="black")
-  plot_manager.save_figure(fig, "estimate_using_gradients.png")
+  plot_manager.save_figure(fig, "estimate_gradients.png")
 
 
 

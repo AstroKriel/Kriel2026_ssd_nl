@@ -6,16 +6,16 @@ import emcee
 import corner
 from scipy.ndimage import gaussian_filter1d as scipy_filter1d
 from jormi.utils import list_utils
-from jormi.ww_io import flash_data
 from jormi.ww_data import interpolate_data
 from jormi.ww_plots import plot_manager
+from ww_flash_sims.sim_io import read_vi_data
 
 
 ## ###############################################################
 ## HELPER FUNCTIONS
 ## ###############################################################
 def load_data(num_samples = 100):
-  time, measured_energy = flash_data.read_vi_data(
+  time, measured_energy = read_vi_data.read_vi_data(
     directory    = "/scratch/jh2/nk7952/Re500/Mach0.3/Pm1/576",
     dataset_name = "mag"
   )
@@ -98,16 +98,16 @@ class Stage1:
       return -numpy.inf
     return 0
 
-  def _log_likelihood(self, fit_params):
+  def _log_likelihood(self, fit_params, print_value=False):
     if not self._check_params_are_valid(fit_params):
         return -numpy.inf
-    modelled_log10_energy = self._log10_energy_model(fit_params)
-    residual_log10_energy = self.measured_log10_energy - modelled_log10_energy
     try:
-        log_likelihood = -0.5 * numpy.sum(numpy.square(residual_log10_energy))
-        if not numpy.isfinite(log_likelihood):
+        residual = self.measured_log10_energy - self._log10_energy_model(fit_params)
+        ll_value = -0.5 * numpy.sum(numpy.square(residual))
+        if print_value: print(ll_value)
+        if not numpy.isfinite(ll_value):
             return -numpy.inf
-        return log_likelihood
+        return ll_value
     except Exception as e:
         print("Error in likelihood:", e, fit_params)
         return -numpy.inf
@@ -171,7 +171,6 @@ class Stage2:
     self.max_time            = numpy.max(self.time)
     self.measured_energy     = scipy_filter1d(measured_energy, 3.0)
     self.measured_dy_dt      = numpy.gradient(self.measured_energy, self.time)
-    self.residual_weighting  = self._compute_risdual_weighting()
     self.init_energy         = 10**log10_init_energy
     transition_index         = list_utils.get_index_of_closest_value(self.time, self.transition_time)
     safe_sat_start_index     = int(transition_index + 0.25 * (len(self.time) - transition_index))
@@ -180,16 +179,6 @@ class Stage2:
       r"$t_{\mathrm{nl}}$",
       r"$t_{\mathrm{sat}}$"
     ]
-
-  def _compute_risdual_weighting(self):
-    self.peak_index  = numpy.argmax(self.measured_dy_dt)
-    peak_dy_dt       = self.measured_dy_dt[self.peak_index]
-    self.lower_index = list_utils.find_first_crossing(self.measured_dy_dt[:self.peak_index], peak_dy_dt/2, direction="rising")
-    self.upper_index = self.peak_index + list_utils.find_first_crossing(self.measured_dy_dt[self.peak_index:], peak_dy_dt/2, direction="falling")
-    weighting_center = self.time[self.peak_index]
-    weighting_fwhm   = self.time[self.upper_index] - self.time[self.lower_index]
-    sigma_factor     = 2 * numpy.sqrt(2 * numpy.log(2))
-    return gaussian(self.time, weighting_center, weighting_fwhm / sigma_factor)
 
   def estimate_params(
       self,
@@ -210,7 +199,10 @@ class Stage2:
     sampler.run_mcmc(param_positions, num_steps)
     chain      = sampler.get_chain()
     samples    = sampler.get_chain(discard=burn_in_steps, thin=10, flat=True)
-    fit_params = numpy.median(samples, axis=0)
+    flat_chain = sampler.get_chain(discard=burn_in_steps, thin=10, flat=True)
+    log_probs  = sampler.get_log_prob(discard=burn_in_steps, thin=10, flat=True)
+    max_idx    = numpy.argmax(log_probs)
+    fit_params = flat_chain[max_idx]
     self._plot_chain_evolution(chain)
     self._corner_plot(samples)
     self._plot_model_results(fit_params)
@@ -252,20 +244,32 @@ class Stage2:
   def _log_likelihood(self, fit_params, print_value=False):
     if not self._check_params_are_valid(fit_params):
         return -numpy.inf
-    modelled_energy   = self._energy_model(fit_params)
-    residual_energy   = self.measured_energy - modelled_energy
-    weighted_residual = self.residual_weighting * residual_energy
     try:
-        ssw_rediual = numpy.sum(numpy.square(weighted_residual))
-        log_likelihood_value = -0.5 * ssw_rediual
-        if print_value: print(f"params = ({fit_params[0]:.2f}, {fit_params[1]:.2f}) yields sswr = {ssw_rediual:.2e}")
-        if not numpy.isfinite(log_likelihood_value):
+        residual    = self.measured_energy - self._energy_model(fit_params)
+        sigma       = 0.5 * self.measured_sat_energy
+        chi_squared = numpy.sum(numpy.square(residual / sigma))
+        ll_value    = -0.5 * chi_squared
+        if print_value: print(f"params = ({fit_params[0]:.2f}, {fit_params[1]:.2f}) yields chi^2 = {chi_squared:.2e}")
+        if not numpy.isfinite(ll_value):
             return -numpy.inf
-        return log_likelihood_value
+        return ll_value
     except Exception as e:
         print("Error in likelihood:", e, fit_params)
         return -numpy.inf
-  
+
+  def plot_log_likelihood(self):
+    start_sat_times = numpy.linspace(150, 250, 10)
+    ll_values = []
+    for start_sat_time in start_sat_times:
+      fit_params = (125, start_sat_time) # (125, 170)
+      ll_value = self._log_likelihood(fit_params)
+      ll_values.append(ll_value)
+    fig, ax = plot_manager.create_figure()
+    ax.plot(start_sat_times, ll_values)
+    ax.set_xlabel(self.param_labels[1])
+    ax.set_ylabel("log-likelihood")
+    plot_manager.save_figure(fig, "log_likelihood.png")
+
   def _log_posterior(self, fit_params):
     log_prior_value = self._log_prior(fit_params)
     if not numpy.isfinite(log_prior_value): return -numpy.inf
@@ -306,16 +310,13 @@ class Stage2:
     axs[0,0].plot(self.time, self.measured_energy, **data_args)
     axs[0,1].plot(self.time, measured_dy_dt, **data_args)
     model_args = dict(color="red", ls="-", lw=1.5, zorder=5)
-    start_nl_energy   = self.init_energy * numpy.exp(self.gamma * start_nl_time)
-    alpha             = (self.measured_sat_energy - start_nl_energy) / (start_sat_time - start_nl_time)
-    modelled_energy   = self._energy_model(fit_params)
-    residual_energy   = self.measured_energy - modelled_energy
-    weighted_residual = self.residual_weighting * (self.measured_energy - modelled_energy)
+    start_nl_energy = self.init_energy * numpy.exp(self.gamma * start_nl_time)
+    alpha           = (self.measured_sat_energy - start_nl_energy) / (start_sat_time - start_nl_time)
+    modelled_energy = self._energy_model(fit_params)
+    residual_energy = self.measured_energy - modelled_energy
     axs[0,0].plot(self.time, modelled_energy, **model_args)
     axs[0,1].axhline(y=alpha, color="red", ls="--", lw=1.5)
     axs[1,0].plot(self.time, residual_energy, **model_args)
-    axs[1,1].plot(self.time, weighted_residual, **model_args)
-    ax11_right.plot(self.time, self.residual_weighting, color="forestgreen", ls="-", lw=2.0)
     for row_index in range(2):
       for col_index in range(2):
         ax = axs[row_index, col_index]
@@ -327,9 +328,6 @@ class Stage2:
     axs[0,0].set_ylabel(r"$E_{\rm mag}$")
     axs[0,1].set_ylabel(r"$({\rm d}/{\rm d}t) E_{\rm mag}$")
     axs[1,0].set_ylabel(r"residuals")
-    axs[1,1].set_ylabel(r"weighted residuals")
-    ax11_right.set_ylabel(r"weighting", color="forestgreen")
-    ax11_right.tick_params(axis="y", labelcolor="forestgreen")
     axs[1,0].set_xlabel("t")
     axs[1,1].set_xlabel("t")
     plot_manager.save_figure(fig, f"mcmc_stage_2_fit.png")
@@ -341,20 +339,17 @@ class Stage2:
 def main():
   ## load and interpolate data
   time, measured_energy = load_data(70)
-  # ## stage 1 MCMC fitter
-  # stage1_guess  = (-20, 0.85 * numpy.max(time), 0.5)
-  # stage1_mcmc   = Stage1(time, measured_energy)
-  # stage1_params = stage1_mcmc.estimate_params(stage1_guess)
-  stage1_params = (-14.72148534, 141.5647634, 0.20296737)
+  ## stage 1 MCMC fitter
+  stage1_guess  = (-20, 0.85 * numpy.max(time), 0.5)
+  stage1_mcmc   = Stage1(time, measured_energy)
+  stage1_params = stage1_mcmc.estimate_params(stage1_guess)
+  stage1_mcmc._log_likelihood(stage1_params, print_value=True)
   ## fit using mcmc routine
-  chi_by_eye    = (125, 170)
-  stage2_guess  = (80, 200)
+  trans_time    = stage1_params[1]
+  stage2_guess  = (0.85 * trans_time, 1.25 * trans_time)
   stage2_mcmc   = Stage2(time, measured_energy, stage1_params)
-  stage2_params = stage2_mcmc.estimate_params(stage2_guess) # dev-ing
-  # stage2_params = stage2_mcmc.estimate_params(chi_by_eye, plot_guess=True) # for debugging
-  stage2_mcmc._log_likelihood(chi_by_eye, print_value=True)
+  stage2_params = stage2_mcmc.estimate_params(stage2_guess)
   stage2_mcmc._log_likelihood(stage2_params, print_value=True)
-  # stage2_params = (85.73124204, 221.51316121)
 
 
 ## ###############################################################

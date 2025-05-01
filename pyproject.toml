@@ -6,13 +6,11 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
   "jormi",
-  "bifrost",
-  "vegtamr",
+  "ww_flash_sims",
   "emcee>=3.1.6",
   "corner>=2.2.3",
 ]
 
 [tool.uv.sources]
-jormi = { path = "../../sindri/python/jormi" }
-bifrost = { path = "../../sindri/python/bifrost" }
-vegtamr = { path = "../../sindri/python/vegtamr" }
+jormi = { path = "../../sindri/python/submodules/jormi" }
+ww_flash_sims = { path = "../../sindri/python/ww_flash_sims" }

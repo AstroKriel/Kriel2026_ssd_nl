@@ -6,7 +6,7 @@ import numpy
 from pathlib import Path
 from jormi.ww_io import io_manager, csv_files
 from jormi.ww_plots import plot_manager
-import my_utils
+from my_utils import ww_sims
 
 
 ## ###############################################################
@@ -18,8 +18,8 @@ def main():
   io_manager.init_directory(output_directory)
   print(" ")
   for sim_directory in sorted(Path("/scratch").glob("*/nk7952/Re500/Mach0.5/Pm1/576*")):
-    sim_name    = my_utils.get_sim_name(sim_directory)
-    data_dict   = my_utils.load_data(sim_directory)
+    sim_name    = ww_sims.get_sim_name(sim_directory)
+    data_dict   = ww_sims.load_data(sim_directory)
     fig, axs    = plot_manager.create_figure(num_rows=2, share_x=True)
     plot_params = dict(color="black", marker="o", ms=3, lw=1)
     axs[0].plot(data_dict["time"], data_dict["magnetic_energy"], **plot_params)

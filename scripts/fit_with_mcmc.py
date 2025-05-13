@@ -134,7 +134,7 @@ def fit_single_sim(output_directory):
 ## ###############################################################
 def main():
   script_directory = io_manager.get_caller_directory()
-  output_directory = io_manager.combine_file_path_parts([ script_directory, "fits" ])
+  output_directory = io_manager.combine_file_path_parts([ script_directory, "mcmc_fits" ])
   io_manager.init_directory(output_directory, verbose=False)
   # fit_all_sims_in_parallel(output_directory)
   fit_single_sim(output_directory)

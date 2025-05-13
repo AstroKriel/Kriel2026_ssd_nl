@@ -7,10 +7,15 @@
 import numpy
 import emcee
 from pathlib import Path
+
+from scipy.stats import gaussian_kde
+from sklearn.preprocessing import StandardScaler
+
 from jormi.ww_io import io_manager
 from jormi.utils import list_utils
 from jormi.ww_data import compute_stats
 from jormi.ww_plots import plot_manager
+
 
 
 ## ###############################################################
@@ -37,6 +42,7 @@ class BaseMCMCModel:
     self.param_labels     = param_labels
     self.verbose          = verbose
     self._validate_inputs()
+    self.samples = None
 
   def _model(self, fit_params: tuple[float, ...]):
     raise NotImplementedError()
@@ -63,7 +69,6 @@ class BaseMCMCModel:
       num_walkers   : int = 200,
       num_steps     : int = 5000,
       burn_in_steps : int = 2000,
-      num_samples   : int = 1000,
       plot_guess    : bool = False,
     ):
     if not self._check_params_are_valid(self.param_guess, print_errors=True):
@@ -71,32 +76,21 @@ class BaseMCMCModel:
     if plot_guess:
       self._plot_model_results(self.param_guess)
       return self.param_guess
-    num_params      = len(self.param_guess)
+    print("Estimating parameters...")
+    num_params = len(self.param_guess)
     param_positions = numpy.array(self.param_guess) + 1e-4 * numpy.random.randn(num_walkers, num_params)
-    sampler         = emcee.EnsembleSampler(num_walkers, num_params, self._log_posterior)
+    sampler = emcee.EnsembleSampler(num_walkers, num_params, self._log_posterior)
     sampler.run_mcmc(param_positions, num_steps)
-    chain           = sampler.get_chain()
-    samples         = sampler.get_chain(discard=burn_in_steps, thin=10, flat=True)
-    best_fit_params = self._get_best_fit(sampler, burn_in_steps)
-    self._plot_chain_evolution(chain)
-    self._plot_param_estimates(samples)
-    self._plot_model_results(best_fit_params)
-
-  def _sample_posterior_distribution(self, samples, num_samples):
-    indices = numpy.random.choice(len(samples), size=num_samples, replace=True)
-    return samples[indices]
+    self.chain   = sampler.get_chain()
+    self.samples = sampler.get_chain(discard=burn_in_steps, thin=10, flat=True)
+    self._compute_scaled_kde()
+    self._plot_chain_evolution()
+    self._plot_param_estimates()
+    self._plot_model_results()
 
   def print_log_likelihood(self, fit_params):
     ll_value = self._log_likelihood(fit_params)
     print(f"params = ({fit_params}) yields log-likelihood = {ll_value:.2e}")
-
-  def _get_best_fit(self, sampler, burn_in_steps):
-    ## TODO: look into posterior predictive distribution check
-    samples         = sampler.get_chain(discard=burn_in_steps, thin=10, flat=True)
-    log_probs       = sampler.get_log_prob(discard=burn_in_steps, thin=10, flat=True)
-    best_fit_index  = numpy.argmax(log_probs)
-    best_fit_params = samples[best_fit_index]
-    return best_fit_params
 
   def _log_prior(self, fit_params):
     if not self._check_params_are_valid(fit_params):
@@ -123,62 +117,27 @@ class BaseMCMCModel:
     ll_value = self._log_likelihood(fit_params)
     return lp_value + ll_value
 
-  def _plot_chain_evolution(self, chain):
-    _, num_walkers, num_params = chain.shape
+  def _plot_chain_evolution(self):
+    _, num_walkers, num_params = self.chain.shape
     fig, axs = plot_manager.create_figure(num_rows=num_params, num_cols=1, share_x=True)
     for param_index in range(num_params):
       for walker_index in range(num_walkers):
-        axs[param_index].plot(chain[:, walker_index, param_index], alpha=0.3, lw=0.5)
+        axs[param_index].plot(self.chain[:, walker_index, param_index], alpha=0.3, lw=0.5)
       axs[param_index].set_ylabel(self.param_labels[param_index])
     axs[-1].set_xlabel("steps")
     fig_name = f"{self.routine_name}_chain_evolution.png"
     fig_file_path = io_manager.combine_file_path_parts([ self.output_directory, fig_name ])
     plot_manager.save_figure(fig, fig_file_path, verbose=self.verbose)
 
-  def _plot_param_estimates(self, samples):
-    _, num_params = samples.shape
-    fig, axs = plot_manager.create_figure(
-      num_cols   = num_params,
-      num_rows   = num_params,
-      axis_shape = (5,5)
-    )
-    param_mins = []
-    param_maxs = []
-    for param1_index in range(num_params):
-      for param2_index in range(num_params):
-        ax = axs[param1_index, param2_index]
-        if param1_index == param2_index:
-          param_min, param_max = self._plot_pdf(ax, samples, param1_index)
-          param_mins.append(param_min)
-          param_maxs.append(param_max)
-        elif param1_index > param2_index:
-          self._plot_jpdf(ax, samples, param1_index, param2_index)
-        else: ax.axis("off")
-    for param1_index in range(num_params):
-      for param2_index in range(num_params):
-        ax = axs[param1_index, param2_index]
-        if param1_index == param2_index:
-          ax.set_xlim(param_mins[param1_index], param_maxs[param1_index])
-        elif param1_index > param2_index:
-          ax.set_xlim(param_mins[param2_index], param_maxs[param2_index])
-          ax.set_ylim(param_mins[param1_index], param_maxs[param1_index])
-        if param1_index == num_params-1: ax.set_xlabel(self.param_labels[param2_index])
-        if param2_index == 0: ax.set_ylabel(self.param_labels[param1_index])
-    fig_name = f"{self.routine_name}_corner_plot.png"
-    fig_file_path = io_manager.combine_file_path_parts([ self.output_directory, fig_name ])
-    plot_manager.save_figure(fig, fig_file_path, verbose=self.verbose)
-
-  def _plot_pdf(self, ax, samples, param_index):
-    values = samples[:, param_index]
+  def _plot_pdf(self, ax, param_index):
+    values = self.samples[:, param_index]
     bin_centers, estimated_pdf = compute_stats.estimate_pdf(values=values, num_bins=20)
     ax.step(bin_centers, estimated_pdf, where="mid", lw=2, color="black")
-    p16 = numpy.percentile(values, 16)
-    p50 = numpy.percentile(values, 50)
-    p84 = numpy.percentile(values, 84)
+    p16, p50, p84 = numpy.percentile(values, [16, 50, 84])
     label = f"{self.param_labels[param_index]} $= {p50:.2f}_{{-{p50-p16:.2f}}}^{{+{p84-p50:.2f}}}$"
     ax.set_title(label, pad=15)
     if param_index > 0: ax.tick_params(labelleft=False, labelright=True)
-    if param_index < samples.shape[1]-1: ax.set_xticklabels([])
+    if param_index < self.samples.shape[1]-1: ax.set_xticklabels([])
     threshold_value = 0.05 * numpy.max(estimated_pdf)
     index_lower = list_utils.find_first_crossing(values=estimated_pdf, target=threshold_value, direction="rising")
     index_upper = list_utils.find_first_crossing(values=estimated_pdf, target=threshold_value, direction="falling")
@@ -186,42 +145,83 @@ class BaseMCMCModel:
     bin_upper = bin_centers[index_upper]
     return (bin_lower, bin_upper)
 
-  def _plot_jpdf(self, ax, samples, param1_index, param2_index):
-    row_data = samples[:, param1_index]
-    col_data = samples[:, param2_index]
+  def _plot_param_estimates(self):
+    _, num_params = self.samples.shape
+    fig, axs = plot_manager.create_figure(
+      num_cols   = num_params,
+      num_rows   = num_params,
+      axis_shape = (5,5)
+    )
+    param_mins = []
+    param_maxs = []
+    for row_param_index in range(num_params):
+      for col_param_index in range(num_params):
+        ax = axs[row_param_index, col_param_index]
+        if row_param_index == col_param_index:
+          param_min, param_max = self._plot_pdf(ax, row_param_index)
+          param_mins.append(param_min)
+          param_maxs.append(param_max)
+        elif row_param_index > col_param_index:
+          self._plot_jpdf(ax, row_param_index, col_param_index)
+          self._plot_kde(ax, row_param_index, col_param_index)
+        else: ax.axis("off")
+    for row_param_index in range(num_params):
+      for col_param_index in range(num_params):
+        ax = axs[row_param_index, col_param_index]
+        if row_param_index == col_param_index:
+          ax.set_xlim(param_mins[row_param_index], param_maxs[row_param_index])
+        if row_param_index > col_param_index:
+          ax.set_xlim(param_mins[col_param_index], param_maxs[col_param_index])
+          ax.set_ylim(param_mins[row_param_index], param_maxs[row_param_index])
+        if row_param_index == num_params-1: ax.set_xlabel(self.param_labels[col_param_index])
+        if row_param_index < self.samples.shape[1]-1: ax.set_xticklabels([])
+        if col_param_index == 0: ax.set_ylabel(self.param_labels[row_param_index])
+        if col_param_index > 0: ax.set_yticklabels([])
+    fig_name = f"{self.routine_name}_corner_plot.png"
+    fig_file_path = io_manager.combine_file_path_parts([ self.output_directory, fig_name ])
+    plot_manager.save_figure(fig, fig_file_path, verbose=self.verbose)
+
+  def _plot_jpdf(self, ax, row_param_index, col_param_index):
+    row_data = self.samples[:, row_param_index]
+    col_data = self.samples[:, col_param_index]
     bc_rows, bc_cols, estimated_jpdf = compute_stats.estimate_jpdf(data_x=col_data, data_y=row_data, num_bins=50)
     extent = [ bc_cols[0], bc_cols[-1], bc_rows[0], bc_rows[-1] ]
     ax.imshow(
       estimated_jpdf,
-      origin = "lower",
       extent = extent,
+      origin = "lower",
       aspect = "auto",
       cmap   = "Blues"
     )
-    if param1_index < samples.shape[1]-1: ax.set_xticklabels([])
-    if param2_index > 0: ax.set_yticklabels([])
 
-  # def _plot_predictive_band(self, posterior_samples, confidence=0.95, num_points=100):
-  #   all_predictions = []
-  #   x_eval = numpy.linspace(self.x_data.min(), self.x_data.max(), num_points)
-  #   for params in posterior_samples:
-  #       y_pred = self._model(params) if len(self.x_data) == num_points else self._model(params, x_eval)
-  #       all_predictions.append(y_pred)
+  def _plot_kde_per_slice(self, ax, row_param_index, col_param_index, num_points=100):
+    data = self.samples[:, [col_param_index, row_param_index]]
+    kde_2d = gaussian_kde(data.T)
+    x = numpy.linspace(data[:, 0].min(), data[:, 0].max(), num_points)
+    y = numpy.linspace(data[:, 1].min(), data[:, 1].max(), num_points)
+    X, Y = numpy.meshgrid(x, y)
+    positions = numpy.vstack([X.ravel(), Y.ravel()])
+    Z = kde_2d(positions).reshape(X.shape)
+    ax.contour(X, Y, Z, colors="red", linewidths=0.8)
 
-  #   all_predictions = numpy.array(all_predictions)
-  #   lower_bound = numpy.percentile(all_predictions, (1 - confidence) / 2 * 100, axis=0)
-  #   upper_bound = numpy.percentile(all_predictions, (1 + confidence) / 2 * 100, axis=0)
-  #   median_pred = numpy.median(all_predictions, axis=0)
+  def _plot_kde(self, ax, row_param_index, col_param_index, num_points=100):
+    row_data = self.samples[:, row_param_index]
+    col_data = self.samples[:, col_param_index]
+    x = numpy.linspace(col_data.min(), col_data.max(), num_points)
+    y = numpy.linspace(row_data.min(), row_data.max(), num_points)
+    X, Y = numpy.meshgrid(x, y)
+    grid_coords = numpy.column_stack([X.ravel(), Y.ravel()])
+    param_means = self.samples.mean(axis=0)
+    grid_full = numpy.tile(param_means, (grid_coords.shape[0], 1))
+    grid_full[:, col_param_index] = grid_coords[:, 0]
+    grid_full[:, row_param_index] = grid_coords[:, 1]
+    Z = self.kde(grid_full.T).reshape(num_points, num_points)
+    ax.contour(X, Y, Z, colors="black", linewidths=0.8)
+    self._plot_kde_per_slice(ax, row_param_index, col_param_index, num_points=100)
 
-  #   import matplotlib.pyplot as plt
-  #   plt.fill_between(x_eval, lower_bound, upper_bound, color="skyblue", alpha=0.4, label=f"{int(confidence*100)}% credible band")
-  #   plt.plot(x_eval, median_pred, color="blue", label="Median prediction")
-  #   plt.scatter(self.x_data, self.y_data, color="black", s=10, label="Observed")
-  #   plt.xlabel("x")
-  #   plt.ylabel("y")
-  #   plt.legend()
-  #   plt.title("Posterior Predictive Fit with Credible Interval")
-  #   plt.show()
+  def _compute_scaled_kde(self):
+    print("Estimating KDE...")
+    self.kde = gaussian_kde(self.samples.T, bw_method="scott")
 
 
 ## END OF MODULE

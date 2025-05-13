@@ -2,6 +2,7 @@
 ## DEPENDENCIES
 ## ###############################################################
 import numpy
+from matplotlib import pyplot as mpl_plot
 from jormi.ww_io import io_manager
 from jormi.ww_plots import plot_manager
 from . import mcmc_base
@@ -46,26 +47,38 @@ class Stage1MCMC(mcmc_base.BaseMCMCModel):
       errors.append(f"`log10_init_energy` ({log10_init_energy:.2f}) must be between -20 and -5.")
     if not (0.25 * self.max_time < transition_time < 0.9 * self.max_time):
       errors.append(f"`transition_time` ({transition_time:.2f}) must be between 25 and 90 percent of `max_time` ({self.max_time:.2f}).")
-    if not (0 < gamma < 1):
-      errors.append(f"`gamma` ({gamma:.2f}) must be between 0 and 1.")
+    if not (0 < gamma < 2):
+      errors.append(f"`gamma` ({gamma:.2f}) must be between 0 and 2.")
     if len(errors) > 0:
       if print_errors: print("\n".join(errors))
       return False
     return True
 
-  def _plot_model_results(self, fit_params):
-    (_, transition_time, gamma) = fit_params
+  def _plot_model_results(self, num_curves=100):
     fig, axs = plot_manager.create_figure(num_rows=3, share_x=True)
     data_args = dict(color="blue", marker="o", ms=5, ls="-", lw=1.0, zorder=3)
-    measured_dlog10y_dt = numpy.gradient(self.y_data, self.x_data)
+    dy_dx = numpy.gradient(self.y_data, self.x_data)
     axs[0].plot(self.x_data, self.y_data, **data_args)
-    axs[1].plot(self.x_data, measured_dlog10y_dt, **data_args)
-    model_args = dict(color="red", ls="-", lw=1.5, zorder=5)
-    modelled_y = self._model(fit_params)
-    residuals  = self.y_data - modelled_y
-    axs[0].plot(self.x_data, modelled_y, **model_args)
+    axs[1].plot(self.x_data, dy_dx, **data_args)
+    num_samples = self.samples.shape[0]
+    random_number_generator = numpy.random.default_rng(seed=42)
+    curve_indices = random_number_generator.choice(num_samples, size=min(num_curves, num_samples), replace=False)
+    model_curves = []
+    for curve_index in curve_indices:
+      modelled_y = self._model(self.samples[curve_index])
+      model_curves.append(modelled_y)
+    model_curves = numpy.array(model_curves)
+    p16 = numpy.percentile(model_curves, 16, axis=0)
+    p50 = numpy.percentile(model_curves, 50, axis=0)
+    p84 = numpy.percentile(model_curves, 84, axis=0)
+    axs[0].plot(self.x_data, p50, color="red", lw=2, zorder=4)
+    axs[0].fill_between(self.x_data, p16, p84, color="red", alpha=0.25, zorder=3)
+    residuals = self.y_data - p50
+    axs[2].plot(self.x_data, residuals, color="red", lw=1.5, zorder=4)
+    median_params = numpy.median(self.samples, axis=0)
+    transition_time = median_params[1]
+    gamma = median_params[2]
     axs[1].axhline(y=self.log10_e * gamma, color="red", ls="--", lw=1.5)
-    axs[2].plot(self.x_data, residuals, **model_args)
     for row_index in range(len(axs)):
       axs[row_index].axvline(x=transition_time, color="red", ls="--", lw=1.5)
     axs[1].axhline(y=0.0, color="black", ls="--")
@@ -73,7 +86,7 @@ class Stage1MCMC(mcmc_base.BaseMCMCModel):
     axs[0].set_ylabel(r"$\log_{10}(E_{\rm mag})$")
     axs[1].set_ylabel(r"$({\rm d}/{\rm d}t) \log_{10}(E_{\rm mag})$")
     axs[2].set_ylabel(r"residuals")
-    axs[2].set_xlabel("t")
+    axs[2].set_xlabel(r"time")
     fig_name = f"{self.routine_name}_fit.png"
     fig_file_path = io_manager.combine_file_path_parts([ self.output_directory, fig_name ])
     plot_manager.save_figure(fig, fig_file_path, verbose=self.verbose)

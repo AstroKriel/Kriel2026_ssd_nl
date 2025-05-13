@@ -9,6 +9,7 @@ dependencies = [
   "ww_flash_sims",
   "emcee>=3.1.6",
   "corner>=2.2.3",
+  "scikit-learn>=1.6.1",
 ]
 
 [tool.uv.sources]

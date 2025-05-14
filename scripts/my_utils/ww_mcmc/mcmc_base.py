@@ -7,10 +7,7 @@
 import numpy
 import emcee
 from pathlib import Path
-
 from scipy.stats import gaussian_kde
-from sklearn.preprocessing import StandardScaler
-
 from jormi.ww_io import io_manager
 from jormi.utils import list_utils
 from jormi.ww_data import compute_stats
@@ -77,9 +74,10 @@ class BaseMCMCModel:
       self._plot_model_results(self.param_guess)
       return self.param_guess
     print("Estimating parameters...")
-    num_params = len(self.param_guess)
-    param_positions = numpy.array(self.param_guess) + 1e-4 * numpy.random.randn(num_walkers, num_params)
-    sampler = emcee.EnsembleSampler(num_walkers, num_params, self._log_posterior)
+    self.num_walkers = num_walkers
+    self.num_params = len(self.param_guess)
+    param_positions = numpy.array(self.param_guess) + 1e-4 * numpy.random.randn(self.num_walkers, self.num_params)
+    sampler = emcee.EnsembleSampler(self.num_walkers, self.num_params, self._log_posterior)
     sampler.run_mcmc(param_positions, num_steps)
     self.chain   = sampler.get_chain()
     self.samples = sampler.get_chain(discard=burn_in_steps, thin=10, flat=True)
@@ -117,11 +115,14 @@ class BaseMCMCModel:
     ll_value = self._log_likelihood(fit_params)
     return lp_value + ll_value
 
+  def _compute_scaled_kde(self):
+    print("Estimating KDE...")
+    self.kde = gaussian_kde(self.samples.T, bw_method="scott")
+
   def _plot_chain_evolution(self):
-    _, num_walkers, num_params = self.chain.shape
-    fig, axs = plot_manager.create_figure(num_rows=num_params, num_cols=1, share_x=True)
-    for param_index in range(num_params):
-      for walker_index in range(num_walkers):
+    fig, axs = plot_manager.create_figure(num_rows=self.num_params, num_cols=1, share_x=True)
+    for param_index in range(self.num_params):
+      for walker_index in range(self.num_walkers):
         axs[param_index].plot(self.chain[:, walker_index, param_index], alpha=0.3, lw=0.5)
       axs[param_index].set_ylabel(self.param_labels[param_index])
     axs[-1].set_xlabel("steps")
@@ -146,44 +147,55 @@ class BaseMCMCModel:
     return (bin_lower, bin_upper)
 
   def _plot_param_estimates(self):
-    _, num_params = self.samples.shape
     fig, axs = plot_manager.create_figure(
-      num_cols   = num_params,
-      num_rows   = num_params,
+      num_cols   = self.num_params,
+      num_rows   = self.num_params,
       axis_shape = (5,5)
     )
     param_mins = []
     param_maxs = []
-    for row_param_index in range(num_params):
-      for col_param_index in range(num_params):
-        ax = axs[row_param_index, col_param_index]
-        if row_param_index == col_param_index:
-          param_min, param_max = self._plot_pdf(ax, row_param_index)
+    for row_index in range(self.num_params):
+      for col_index in range(self.num_params):
+        ax = axs[row_index, col_index]
+        if row_index == col_index:
+          param_min, param_max = self._plot_pdf(ax, row_index)
           param_mins.append(param_min)
           param_maxs.append(param_max)
-        elif row_param_index > col_param_index:
-          self._plot_jpdf(ax, row_param_index, col_param_index)
-          self._plot_kde(ax, row_param_index, col_param_index)
+        elif row_index > col_index:
+          self._plot_jpdf(ax, row_index, col_index)
+          # self._plot_kde(ax, row_index, col_index)
         else: ax.axis("off")
-    for row_param_index in range(num_params):
-      for col_param_index in range(num_params):
-        ax = axs[row_param_index, col_param_index]
-        if row_param_index == col_param_index:
-          ax.set_xlim(param_mins[row_param_index], param_maxs[row_param_index])
-        if row_param_index > col_param_index:
-          ax.set_xlim(param_mins[col_param_index], param_maxs[col_param_index])
-          ax.set_ylim(param_mins[row_param_index], param_maxs[row_param_index])
-        if row_param_index == num_params-1: ax.set_xlabel(self.param_labels[col_param_index])
-        if row_param_index < self.samples.shape[1]-1: ax.set_xticklabels([])
-        if col_param_index == 0: ax.set_ylabel(self.param_labels[row_param_index])
-        if col_param_index > 0: ax.set_yticklabels([])
+    self._label_plot(axs, param_mins, param_maxs)
     fig_name = f"{self.routine_name}_corner_plot.png"
     fig_file_path = io_manager.combine_file_path_parts([ self.output_directory, fig_name ])
     plot_manager.save_figure(fig, fig_file_path, verbose=self.verbose)
 
-  def _plot_jpdf(self, ax, row_param_index, col_param_index):
-    row_data = self.samples[:, row_param_index]
-    col_data = self.samples[:, col_param_index]
+  def _label_plot(self, axs, param_mins, param_maxs):
+    for row_index in range(self.num_params):
+      for col_index in range(self.num_params):
+        if col_index > row_index: continue
+        ax = axs[row_index, col_index]
+        ## diagonal: 1d pdfs
+        if row_index == col_index:
+          ax.set_xlim(param_mins[row_index], param_maxs[row_index])
+          if col_index > 0: ax.yaxis.tick_right()
+        ## lower triangle: 2d joint-pdfs
+        elif row_index > col_index:
+          ax.set_xlim(param_mins[col_index], param_maxs[col_index])
+          ax.set_ylim(param_mins[row_index], param_maxs[row_index])
+          if col_index > 0: ax.set_yticklabels([])
+        ## bottom row: add x-axis labels
+        if row_index == self.num_params-1:
+          ax.set_xlabel(self.param_labels[col_index])
+        else: ax.set_xticklabels([])
+        ## first column: add y-axis labels
+        if col_index == 0:
+          ax.set_ylabel(self.param_labels[row_index])
+        
+
+  def _plot_jpdf(self, ax, row_index, col_index):
+    row_data = self.samples[:, row_index]
+    col_data = self.samples[:, col_index]
     bc_rows, bc_cols, estimated_jpdf = compute_stats.estimate_jpdf(data_x=col_data, data_y=row_data, num_bins=50)
     extent = [ bc_cols[0], bc_cols[-1], bc_rows[0], bc_rows[-1] ]
     ax.imshow(
@@ -194,47 +206,17 @@ class BaseMCMCModel:
       cmap   = "Blues"
     )
 
-  def _plot_kde_per_slice(self, ax, row_param_index, col_param_index, num_points=100):
-    data = self.samples[:, [col_param_index, row_param_index]]
-    kde_2d = gaussian_kde(data.T)
-    x = numpy.linspace(data[:, 0].min(), data[:, 0].max(), num_points)
-    y = numpy.linspace(data[:, 1].min(), data[:, 1].max(), num_points)
-    X, Y = numpy.meshgrid(x, y)
-    positions = numpy.vstack([X.ravel(), Y.ravel()])
-    Z = kde_2d(positions).reshape(X.shape)
-    ax.contour(X, Y, Z, colors="red", linewidths=2.0)
-
-  # def _plot_kde(self, ax, row_param_index, col_param_index, num_points=100):
-  #   row_data = self.samples[:, row_param_index]
-  #   col_data = self.samples[:, col_param_index]
-  #   x = numpy.linspace(col_data.min(), col_data.max(), num_points)
-  #   y = numpy.linspace(row_data.min(), row_data.max(), num_points)
-  #   X, Y = numpy.meshgrid(x, y)
-  #   grid_coords = numpy.column_stack([X.ravel(), Y.ravel()])
-  #   param_means = self.samples.mean(axis=0)
-  #   grid_full = numpy.tile(param_means, (grid_coords.shape[0], 1))
-  #   grid_full[:, col_param_index] = grid_coords[:, 0]
-  #   grid_full[:, row_param_index] = grid_coords[:, 1]
-  #   Z = self.kde(grid_full.T).reshape(num_points, num_points)
-  #   ax.contour(X, Y, Z, colors="black", linewidths=0.8)
-  #   self._plot_kde_per_slice(ax, row_param_index, col_param_index, num_points=100)
-
-  def _plot_kde(self, ax, row_param_index, col_param_index):
-    print(f"Estimating KDE projection: axs[{row_param_index}][{col_param_index}]")
+  def _plot_kde(self, ax, row_index, col_index):
+    print(f"Estimating KDE projection: axs[{row_index}][{col_index}]")
     Xi, Xj, Z = compute_2d_kde_projection(
         full_kde = self.kde,
         samples = self.samples,
-        i=col_param_index,
-        j=row_param_index,
+        i=col_index,
+        j=row_index,
         num_points=30,
         num_marginal_samples=50,
     )
-    ax.contour(Xi, Xj, Z, colors="black", linewidths=1.0)
-    self._plot_kde_per_slice(ax, row_param_index, col_param_index, num_points=100)
-
-  def _compute_scaled_kde(self):
-    print("Estimating KDE...")
-    self.kde = gaussian_kde(self.samples.T, bw_method="scott")
+    ax.contour(Xi, Xj, Z, alpha=0.5, colors="red", linewidths=1.0, zorder=5)
 
 def compute_2d_kde_projection(full_kde, samples, i, j, num_points, num_marginal_samples):
     ndim = samples.shape[1]

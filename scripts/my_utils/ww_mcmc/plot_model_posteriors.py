@@ -11,6 +11,12 @@ from . import base_plotter
 
 
 ## ###############################################################
+## HELPER FUNCTION
+## ###############################################################
+
+
+
+## ###############################################################
 ## PLOTTING ROUTINE
 ## ###############################################################
 
@@ -30,6 +36,7 @@ class PlotModelPosteriors(base_plotter.BaseMCMCPlotter):
           param_maxs.append(param_max)
         elif row_index > col_index:
           self._plot_jpdf(ax, row_index, col_index)
+          self._plot_kde(ax, row_index, col_index)
         else: ax.axis("off")
     self._tweak_plot(axs, param_mins, param_maxs)
     fig_name = f"{self.mcmc_routine.routine_name}_corner_plot.png"
@@ -45,11 +52,11 @@ class PlotModelPosteriors(base_plotter.BaseMCMCPlotter):
     ax.set_title(label, pad=15)
     if param_index > 0: ax.tick_params(labelleft=False, labelright=True)
     if param_index < self.mcmc_routine.posterior_samples.shape[1] - 1: ax.set_xticklabels([])
-    threshold = 0.05 * numpy.max(pdf)
-    i1 = list_utils.find_first_crossing(values=pdf, target=threshold, direction="rising")
+    pdf_threshold = 0.05 * numpy.max(pdf)
+    i1 = list_utils.find_first_crossing(values=pdf, target=pdf_threshold, direction="rising")
     # i2 = list_utils.find_first_crossing(values=pdf, target=threshold, direction="falling")
     reversed_pdf = pdf[::-1]
-    i2_rev = list_utils.find_first_crossing(values=reversed_pdf, target=threshold, direction="falling")
+    i2_rev = list_utils.find_first_crossing(values=reversed_pdf, target=pdf_threshold, direction="falling")
     i2 = len(pdf) - 1 - i2_rev if i2_rev is not None else None
     return bin_centers[i1], bin_centers[i2]
 
@@ -87,6 +94,51 @@ class PlotModelPosteriors(base_plotter.BaseMCMCPlotter):
         else: ax.set_xticklabels([])
         if col_index == 0:
           ax.set_ylabel(self.mcmc_routine.param_labels[row_index])
+
+  def _plot_kde(self, ax, row_index, col_index):
+    print(f"Estimating KDE projection for axs[{row_index}][{col_index}]")
+    Xi, Xj, Z = self._compute_2d_kde_projection(
+      col_index            = col_index,
+      row_index            = row_index,
+      num_points           = 30,
+      num_marginal_samples = 50,
+    )
+    ax.contour(Xi, Xj, Z, colors="red", linewidths=1.0, alpha=0.5)
+
+  def _compute_2d_kde_projection(self, col_index, row_index, num_points, num_marginal_samples):
+    other_indices = [
+      k
+      for k in range(self.mcmc_routine.num_params)
+      if k != col_index and k != row_index
+    ]
+    xi = numpy.linspace(
+      self.mcmc_routine.posterior_samples[:, col_index].min(),
+      self.mcmc_routine.posterior_samples[:, col_index].max(),
+      num_points
+    )
+    xj = numpy.linspace(
+      self.mcmc_routine.posterior_samples[:, row_index].min(),
+      self.mcmc_routine.posterior_samples[:, row_index].max(),
+      num_points
+    )
+    Xi, Xj = numpy.meshgrid(xi, xj)
+    X_flat = Xi.ravel()
+    Y_flat = Xj.ravel()
+    n_grid = X_flat.shape[0]
+    marginal_sample_indices = numpy.random.choice(
+      self.mcmc_routine.posterior_samples.shape[0],
+      size    = num_marginal_samples,
+      replace = False
+    )
+    marginal_values = self.mcmc_routine.posterior_samples[marginal_sample_indices][:, other_indices]
+    grid_points = numpy.zeros((n_grid * num_marginal_samples, self.mcmc_routine.num_params))
+    grid_points[:, col_index] = numpy.repeat(X_flat, num_marginal_samples)
+    grid_points[:, row_index] = numpy.repeat(Y_flat, num_marginal_samples)
+    marginal_tiled = numpy.tile(marginal_values, (n_grid, 1))
+    grid_points[:, other_indices] = marginal_tiled
+    Z_vals = self.mcmc_routine.posterior_kde(grid_points.T)
+    Z_avg = Z_vals.reshape(n_grid, num_marginal_samples).mean(axis=1).reshape(num_points, num_points)
+    return Xi, Xj, Z_avg
 
 
 ## END OF MODULE

@@ -16,7 +16,7 @@ class PlotChainEvolution(base_plotter.BaseMCMCPlotter):
   def plot(self):
     num_params  = self.mcmc_routine.num_params
     num_walkers = self.mcmc_routine.num_walkers
-    raw_chain   = self.mcmc_routine.raw_chain
+    raw_chain   = self.mcmc_routine.raw_chain # (walkers, steps, params)
     labels      = self.mcmc_routine.param_labels
     fig, self.axs = plot_manager.create_figure(num_rows=num_params, num_cols=1, share_x=True)
     for param_index in range(num_params):

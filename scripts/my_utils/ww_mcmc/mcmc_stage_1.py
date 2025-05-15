@@ -20,7 +20,7 @@ class MCMCStage1(base_mcmc.BaseMCMCRoutine):
       verbose          = verbose,
       x_values         = x_values,
       y_values         = numpy.log10(y_values),
-      initial_params      = (-20, 0.85 * numpy.max(x_values), 0.5),
+      initial_params   = (-20, 0.85 * numpy.max(x_values), 0.5),
       param_labels     = [
         r"$\log_{10}(E_{\mathrm{init}})$",
         r"$t_{\mathrm{approx}}$",

@@ -4,31 +4,32 @@
 import numpy
 from pathlib import Path
 from jormi.ww_io import io_manager
+from jormi.ww_plots import plot_manager
 from jormi.parallelism import independent_tasks
 from my_utils import ww_sims, ww_mcmc
 
 
-## ###############################################################
-## FINAL ENERGY MODEL
-## ###############################################################
-def energy_model(time, stage1_params, stage2_params):
-  (log10_init_energy, _, gamma) = stage1_params
-  (start_nl_time, start_sat_time, log10_sat_energy) = stage2_params
-  ## mask different ssd phases
-  mask_exp_phase = time < start_nl_time
-  mask_nl_phase  = (start_nl_time <= time) & (time < start_sat_time)
-  mask_sat_phase = start_sat_time < time
-  ## calculate model constants
-  init_energy     = 10**log10_init_energy
-  start_nl_energy = init_energy * numpy.exp(gamma * start_nl_time)
-  sat_energy      = 10**log10_sat_energy
-  alpha           = (sat_energy - start_nl_energy) / (start_sat_time - start_nl_time)
-  ## model energy evolution
-  energy = numpy.zeros_like(time)
-  energy[mask_exp_phase] = init_energy * numpy.exp(gamma * time[mask_exp_phase])
-  energy[mask_nl_phase]  = start_nl_energy + alpha * (time[mask_nl_phase] - start_nl_time)
-  energy[mask_sat_phase] = sat_energy
-  return energy
+# ## ###############################################################
+# ## FINAL ENERGY MODEL
+# ## ###############################################################
+# def energy_model(time, stage1_params, stage2_params):
+#   (log10_init_energy, _, gamma) = stage1_params
+#   (start_nl_time, start_sat_time, log10_sat_energy) = stage2_params
+#   ## mask different ssd phases
+#   mask_exp_phase = time < start_nl_time
+#   mask_nl_phase  = (start_nl_time <= time) & (time < start_sat_time)
+#   mask_sat_phase = start_sat_time < time
+#   ## calculate model constants
+#   init_energy     = 10**log10_init_energy
+#   start_nl_energy = init_energy * numpy.exp(gamma * start_nl_time)
+#   sat_energy      = 10**log10_sat_energy
+#   alpha           = (sat_energy - start_nl_energy) / (start_sat_time - start_nl_time)
+#   ## model energy evolution
+#   energy = numpy.zeros_like(time)
+#   energy[mask_exp_phase] = init_energy * numpy.exp(gamma * time[mask_exp_phase])
+#   energy[mask_nl_phase]  = start_nl_energy + alpha * (time[mask_nl_phase] - start_nl_time)
+#   energy[mask_sat_phase] = sat_energy
+#   return energy
 
 
 ## ###############################################################
@@ -44,27 +45,23 @@ def routine(sim_directory, level1_output_directory, verbose=True):
   io_manager.init_directory(level2_output_directory, verbose=False)
   ## load and interpolate data
   data_dict = ww_sims.load_data(sim_directory, num_samples=70)
-  time = data_dict["time"]
-  measured_energy = data_dict["magnetic_energy"]
   ## stage 1 MCMC fitter
-  stage1_mcmc = ww_mcmc.Stage1MCMC(
+  stage1_mcmc = ww_mcmc.MCMCStage1(
     output_directory = level2_output_directory,
-    x_data           = time,
-    y_data           = measured_energy,
+    x_values         = data_dict["time"],
+    y_values         = data_dict["magnetic_energy"],
     verbose          = verbose
   )
-  stage1_mcmc.estimate_params()
-  # if verbose: stage1_mcmc.print_log_likelihood(stage1_params)
+  stage1_mcmc.sample_posterior()
   # ## stage 2 MCMC fitter
-  # stage2_mcmc = ww_mcmc.Stage2MCMC(
+  # stage2_mcmc = ww_mcmc.MCMCStage2(
   #   output_directory = level2_output_directory,
-  #   time             = time,
-  #   measured         = measured_energy,
+  #   x_values         = time,
+  #   y_values         = measured_energy,
   #   stage1_params    = stage1_params,
   #   verbose          = verbose
   # )
-  # stage2_params = stage2_mcmc.estimate_params()
-  # if verbose: stage2_mcmc.print_log_likelihood(stage2_params)
+  # stage2_mcmc.sample_posterior()
   # ## plot final fit
   # fig, axs = plot_manager.create_figure(num_rows=2, share_x=True)
   # fig_data_params = dict(color="blue", marker="o", ms=3, lw=1)

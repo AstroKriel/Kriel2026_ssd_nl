@@ -24,14 +24,14 @@ def get_alpha(fit_params):
 
 
 def plot_powerlaw_passing_through(ax, domain_bounds, coordinate, slope, num_samples, ls):
-  x_data = numpy.linspace(domain_bounds[0], domain_bounds[1], num_samples)
+  x_values = numpy.linspace(domain_bounds[0], domain_bounds[1], num_samples)
   (x1, y1) = coordinate
   a0 = y1 / x1**slope
-  y_data = a0 * x_data**slope
+  y_values = a0 * x_values**slope
   plot_data.plot_wo_scaling_axis(
     ax     = ax,
-    x_data = x_data,
-    y_data = y_data,
+    x_values = x_values,
+    y_values = y_values,
     ls     = ls,
     lw     = 2
   )

@@ -7,6 +7,7 @@ from pathlib import Path
 from jormi.ww_io import io_manager, csv_files
 from jormi.ww_plots import plot_manager
 from my_utils import ww_sims
+from ww_flash_sims.sim_io import read_vi_data
 
 
 ## ###############################################################
@@ -19,11 +20,16 @@ def main():
   print(" ")
   for sim_directory in sorted(Path("/scratch").glob("*/nk7952/Re500/Mach0.5/Pm1/576*")):
     sim_name    = ww_sims.get_sim_name(sim_directory)
+    time, magnetic_energy = read_vi_data.read_vi_data(directory=sim_directory, dataset_name="mag")
     data_dict   = ww_sims.load_data(sim_directory)
     fig, axs    = plot_manager.create_figure(num_rows=2, share_x=True)
-    plot_params = dict(color="black", marker="o", ms=3, lw=1)
-    axs[0].plot(data_dict["time"], data_dict["magnetic_energy"], **plot_params)
-    axs[1].plot(data_dict["time"], numpy.log10(data_dict["magnetic_energy"]), **plot_params)
+    raw_params = dict(color="red", ls="-", lw=1, zorder=5)
+    sampled_params = dict(color="black", marker="o", ms=3, zorder=3)
+    print(len(time), len(data_dict["time"]))
+    axs[0].plot(time, magnetic_energy, **raw_params)
+    axs[1].plot(time, numpy.log10(magnetic_energy), **raw_params)
+    axs[0].plot(data_dict["time"], data_dict["magnetic_energy"], **sampled_params)
+    axs[1].plot(data_dict["time"], numpy.log10(data_dict["magnetic_energy"]), **sampled_params)
     axs[0].set_ylabel("$\mathrm{energy}$")
     axs[1].set_ylabel("$\log_{10}(\mathrm{energy})$")
     axs[1].set_xlabel("time")

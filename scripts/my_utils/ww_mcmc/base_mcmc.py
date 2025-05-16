@@ -41,8 +41,8 @@ class BaseMCMCRoutine:
       routine_name     : str,
       x_values         : list | numpy.ndarray,
       y_values         : list | numpy.ndarray,
-      initial_params   : tuple[float, ...],
-      prior_kde        : float | None = None,
+      initial_params   : tuple[float, ...] | None = None,
+      prior_kde        : None = None,
       likelihood_sigma : float = 1.0,
       y_data_label     : str | None = None,
       fitted_param_labels     : list[str] = [],
@@ -72,6 +72,8 @@ class BaseMCMCRoutine:
       raise ValueError(f"`y_values` should be either a list or array of values.")
     if len(self.x_values) != len(self.y_values):
       raise ValueError(f"`x_values` and `y_values` should be the same length, but got {len(self.x_values)} vs {len(self.y_values)}.")
+    if not isinstance(self.initial_params, tuple):
+      raise ValueError(f"`initial_params` must be a tuple, got {type(self.initial_params)}.")
     if not isinstance(self.likelihood_sigma, float):
       raise ValueError(f"`likelihood_sigma` should be a scalar.")
 
@@ -92,11 +94,11 @@ class BaseMCMCRoutine:
     self.fitted_posterior_samples = mcmc_sampler.get_chain(discard=burn_in_steps, thin=10, flat=True)
     self.output_posterior_samples, self.output_param_labels = self._get_output_params()
     if numpy.array_equal(self.output_posterior_samples, self.fitted_posterior_samples):
-      print("Estimating the KDE of only the fitted posterior samples...")
+      print("Estimating the KDE of only the fitted posterior...")
       self.fitted_posterior_kde = gaussian_kde(self.fitted_posterior_samples.T, bw_method="scott")
       self.output_posterior_kde = self.fitted_posterior_kde
     else:
-      print("Estimating the KDE of both the fitted and output posterior samples...")
+      print("Estimating the KDE of both the fitted and output posterior...")
       self.fitted_posterior_kde = gaussian_kde(self.fitted_posterior_samples.T, bw_method="scott")
       self.output_posterior_kde = gaussian_kde(self.output_posterior_samples.T, bw_method="scott")
     self._make_plots()
@@ -130,7 +132,7 @@ class BaseMCMCRoutine:
 
   def _make_plots(self):
     plot_chain_evolution.PlotChainEvolution(self).plot()
-    # plot_model_posteriors.PlotModelPosteriors(self).plot()
+    plot_model_posteriors.PlotModelPosteriors(self).plot()
     plot_model_fits.PlotModelFits(self).plot()
 
 

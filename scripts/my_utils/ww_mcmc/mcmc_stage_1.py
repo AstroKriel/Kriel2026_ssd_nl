@@ -28,7 +28,7 @@ def plot_param_percentiles(ax, samples, orientation):
 ## ###############################################################
 
 class MCMCStage1Routine(base_mcmc.BaseMCMCRoutine):
-  def __init__(self, output_directory, x_values, y_values, verbose):
+  def __init__(self, output_directory, x_values, y_values, initial_params, verbose):
     self.log10_e = numpy.log10(numpy.exp(1))
     self.max_time = numpy.max(x_values)
     super().__init__(
@@ -37,7 +37,7 @@ class MCMCStage1Routine(base_mcmc.BaseMCMCRoutine):
       verbose             = verbose,
       x_values            = x_values,
       y_values            = numpy.log10(y_values),
-      initial_params      = (-20, 0.5, 0.85 * numpy.max(x_values)),
+      initial_params      = initial_params,
       y_data_label        = r"$\log_{10}(E_{\mathrm{mag}})$",
       fitted_param_labels = [
         r"$\log_{10}(E_{\mathrm{init}})$",

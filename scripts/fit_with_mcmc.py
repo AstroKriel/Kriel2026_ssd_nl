@@ -9,9 +9,10 @@ from jormi.parallelism import independent_tasks
 from my_utils import ww_sims, ww_mcmc
 
 
-# ## ###############################################################
-# ## FINAL ENERGY MODEL
-# ## ###############################################################
+## ###############################################################
+## HELPER FUNCTIONS
+## ###############################################################
+
 # def energy_model(time, stage1_params, stage2_params):
 #   (log10_init_energy, _, gamma) = stage1_params
 #   (start_nl_time, start_sat_time, log10_sat_energy) = stage2_params
@@ -31,6 +32,10 @@ from my_utils import ww_sims, ww_mcmc
 #   energy[mask_sat_phase] = sat_energy
 #   return energy
 
+def compute_median_params_from_kde(kde, num_samples=10000):
+  samples = kde.resample(num_samples)
+  return tuple(numpy.median(samples, axis=1))
+
 
 ## ###############################################################
 ## MCMC ROUTINE
@@ -45,14 +50,30 @@ def routine(sim_directory, level1_output_directory, verbose=True):
   io_manager.init_directory(level2_output_directory, verbose=False)
   ## load and interpolate data
   data_dict = ww_sims.load_data(sim_directory, num_samples=70)
+  x_values = data_dict["time"]
+  y_values = data_dict["magnetic_energy"]
   ## stage 1 MCMC fitter
+  stage1_initial_params = (
+    -20,
+    0.5,
+    0.5 * numpy.max(x_values)
+  )
   stage1_mcmc = ww_mcmc.MCMCStage1Routine(
     output_directory = level2_output_directory,
-    x_values         = data_dict["time"],
-    y_values         = data_dict["magnetic_energy"],
+    x_values         = x_values,
+    y_values         = y_values,
+    initial_params   = stage1_initial_params,
     verbose          = verbose
   )
   stage1_mcmc.sample_posterior()
+  median_stage1_params  = compute_median_params_from_kde(stage1_mcmc.output_posterior_kde)
+  stage2_initial_params = (
+    median_stage1_params[0],
+    median_stage1_params[1],
+    median_stage1_params[2],
+    0.25*numpy.max(x_values),
+    0.75*numpy.max(x_values)
+  )
   # ## stage 2 MCMC fitter
   # stage2_mcmc = ww_mcmc.MCMCStage2Routine(
   #   output_directory = level2_output_directory,

@@ -26,13 +26,13 @@ class BaseMCMCRoutine:
   def _check_params_are_valid(self, param_vector: tuple[float, ...], print_errors: bool = False):
     raise NotImplementedError()
 
-  def _get_output_param_samples(self, samples: numpy.ndarray) -> numpy.ndarray:
-    return samples
-
-  def _get_output_param_labels(self) -> list[str]:
-    return self.fitted_param_labels
+  def _get_output_params(self) -> tuple[numpy.ndarray, list[str]]:
+    return self.fitted_posterior_samples, self.fitted_param_labels
 
   def _annotate_fitted_params(self, axs):
+    pass
+
+  def _annotate_output_params(self, axs):
     pass
 
   def __init__(
@@ -90,7 +90,7 @@ class BaseMCMCRoutine:
     mcmc_sampler.run_mcmc(perturbed_params, num_steps)
     self.raw_chain = mcmc_sampler.get_chain()
     self.fitted_posterior_samples = mcmc_sampler.get_chain(discard=burn_in_steps, thin=10, flat=True)
-    self.output_posterior_samples = self._get_output_param_samples(self.fitted_posterior_samples)
+    self.output_posterior_samples, self.output_param_labels = self._get_output_params()
     if numpy.array_equal(self.output_posterior_samples, self.fitted_posterior_samples):
       print("Estimating the KDE of only the fitted posterior samples...")
       self.fitted_posterior_kde = gaussian_kde(self.fitted_posterior_samples.T, bw_method="scott")
@@ -130,7 +130,7 @@ class BaseMCMCRoutine:
 
   def _make_plots(self):
     plot_chain_evolution.PlotChainEvolution(self).plot()
-    plot_model_posteriors.PlotModelPosteriors(self).plot()
+    # plot_model_posteriors.PlotModelPosteriors(self).plot()
     plot_model_fits.PlotModelFits(self).plot()
 
 

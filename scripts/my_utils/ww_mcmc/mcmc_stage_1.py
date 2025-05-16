@@ -19,8 +19,8 @@ def plot_param_percentiles(ax, samples, orientation):
     ax_line = ax.axvline
     ax_span = ax.axvspan
   else: raise ValueError("`orientation` must either be `horizontal` (`h`) or `vertical` (`v`).")
-  ax_line(p50, color="black", ls=":", lw=1.5, zorder=5)
-  ax_span(p16, p84, color="black", ls="-", lw=1.5, alpha=0.3, zorder=4)
+  ax_line(p50, color="green", ls=":", lw=1.5, zorder=5)
+  ax_span(p16, p84, color="green", ls="-", lw=1.5, alpha=0.3, zorder=4)
 
 
 ## ###############################################################
@@ -37,7 +37,7 @@ class MCMCStage1Routine(base_mcmc.BaseMCMCRoutine):
       verbose             = verbose,
       x_values            = x_values,
       y_values            = numpy.log10(y_values),
-      initial_params      = (-20, 0.85 * numpy.max(x_values), 0.5),
+      initial_params      = (-20, 0.5, 0.85 * numpy.max(x_values)),
       y_data_label        = r"$\log_{10}(E_{\mathrm{mag}})$",
       fitted_param_labels = [
         r"$\log_{10}(E_{\mathrm{init}})$",
@@ -47,7 +47,7 @@ class MCMCStage1Routine(base_mcmc.BaseMCMCRoutine):
     )
 
   def _model(self, param_vector):
-    (log10_init_energy, transition_time, gamma) = param_vector
+    (log10_init_energy, gamma, transition_time) = param_vector
     ## mask reduced ssd phases
     mask_exp = self.x_values < transition_time
     mask_sat = ~mask_exp
@@ -58,25 +58,46 @@ class MCMCStage1Routine(base_mcmc.BaseMCMCRoutine):
     return log10_energy
 
   def _check_params_are_valid(self, param_vector, print_errors=False):
-    (log10_init_energy, transition_time, gamma) = param_vector
+    (log10_init_energy, gamma, transition_time) = param_vector
     errors = []
     if not (-30 < log10_init_energy < -5):
       errors.append(f"`log10_init_energy` ({log10_init_energy:.2f}) must be between -20 and -5.")
-    if not (0.25 * self.max_time < transition_time < 0.9 * self.max_time):
-      errors.append(f"`transition_time` ({transition_time:.2f}) must be between 25 and 90 percent of `max_time` ({self.max_time:.2f}).")
     if not (0 < gamma < 2):
       errors.append(f"`gamma` ({gamma:.2f}) must be between 0 and 2.")
+    if not (0.25 * self.max_time < transition_time < 0.9 * self.max_time):
+      errors.append(f"`transition_time` ({transition_time:.2f}) must be between 25 and 90 percent of `max_time` ({self.max_time:.2f}).")
     if len(errors) > 0:
       if print_errors: print("\n".join(errors))
       return False
     return True
 
   def _annotate_fitted_params(self, axs):
-    tt_samples = self.fitted_posterior_samples[:,1]
-    log10_gamma_samples = self.log10_e * numpy.array(self.fitted_posterior_samples[:,2])
+    log10_gamma_samples     = self.log10_e * self.fitted_posterior_samples[:,1]
+    transition_time_samples = self.fitted_posterior_samples[:,2]
     plot_param_percentiles(axs[1], log10_gamma_samples, orientation="horizontal")
     for row_index in range(len(axs)):
-      plot_param_percentiles(axs[row_index], tt_samples, orientation="vertical")
+      plot_param_percentiles(axs[row_index], transition_time_samples, orientation="vertical")
+
+  def _get_output_params(self):
+    log10_init_energy_samples = self.fitted_posterior_samples[:,0]
+    gamma_samples             = self.fitted_posterior_samples[:,1]
+    transition_time_samples   = self.fitted_posterior_samples[:,2]
+    log10_sat_energy_samples  = log10_init_energy_samples + self.log10_e * gamma_samples * transition_time_samples
+    output_param_samples = numpy.column_stack([
+      log10_init_energy_samples,
+      log10_sat_energy_samples,
+      gamma_samples,
+    ])
+    output_param_labels = [
+      r"$\log_{10}(E_{\mathrm{init}})$",
+      r"$\log_{10}(E_{\mathrm{sat}})$",
+      r"$\gamma$",
+    ]
+    return output_param_samples, output_param_labels
+
+  def _annotate_output_params(self, axs):
+    log10_sat_energy_samples = self.output_posterior_samples[:,1]
+    plot_param_percentiles(axs[0], log10_sat_energy_samples, orientation="horizontal")
 
 
 ## END OF MODULE

@@ -18,10 +18,11 @@ class PlotModelFits:
       mcmc_routine,
       num_curves : int = 100,
     ):
-    self.mcmc_routine  = mcmc_routine
-    self.num_curves    = num_curves
-    self.y_data_label  = self.mcmc_routine.y_data_label
+    self.mcmc_routine            = mcmc_routine
+    self.num_curves              = num_curves
+    self.y_data_label            = self.mcmc_routine.y_data_label
     self._annotate_fitted_params = self.mcmc_routine._annotate_fitted_params
+    self._annotate_output_params = self.mcmc_routine._annotate_output_params
 
   def plot(self):
     fig, axs = plot_manager.create_figure(num_rows=3, share_x=True)
@@ -29,6 +30,7 @@ class PlotModelFits:
     self._plot_model(axs)
     self._plot_residuals(axs)
     self._annotate_fitted_params(axs)
+    self._annotate_output_params(axs)
     if self.y_data_label is not None:
       axs[0].set_ylabel(self.y_data_label)
       stripped_y_data_label = self.y_data_label.strip("$")

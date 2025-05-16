@@ -130,7 +130,7 @@ class PlotModelPosteriors:
         if col_index > row_index: continue
         if row_index == col_index:
           ax.set_xlim(param_ranges[row_index][0], param_ranges[row_index][1])
-          if col_index > 0: ax.yaxis.tick_right()
+          if col_index > 0: ax.tick_params(axis="y", labelright=True)
         else:
           ax.set_xlim(param_ranges[col_index][0], param_ranges[col_index][1])
           ax.set_ylim(param_ranges[row_index][0], param_ranges[row_index][1])

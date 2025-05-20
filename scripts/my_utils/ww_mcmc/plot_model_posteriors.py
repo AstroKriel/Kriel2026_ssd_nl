@@ -21,6 +21,7 @@ class PlotModelPosteriors:
     self.routine_name     = self.mcmc_routine.routine_name
     self.num_params       = self.mcmc_routine.num_params
     self.verbose          = self.mcmc_routine.verbose
+    self.debug_mode       = self.mcmc_routine.debug_mode
 
   def plot(self):
     self._plot_posteriors(
@@ -59,7 +60,8 @@ class PlotModelPosteriors:
           self._plot_jpdf(ax, row_index, col_index, posterior_samples)
         else: ax.axis("off")
     self._annotate_plot(axs, param_ranges, param_labels)
-    self._plot_kde_projections(axs, posterior_samples, posterior_kde, param_ranges)
+    if self.debug_mode:
+      self._plot_kde_projections(axs, posterior_samples, posterior_kde, param_ranges)
     file_path = io_manager.combine_file_path_parts([ self.output_directory, fig_name ])
     plot_manager.save_figure(fig, file_path, verbose=self.verbose)
 

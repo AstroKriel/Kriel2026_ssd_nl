@@ -7,6 +7,7 @@
 
 import numpy
 import emcee
+from tqdm import tqdm
 from pathlib import Path
 from scipy.stats import gaussian_kde
 from . import plot_chain_evolution
@@ -37,16 +38,18 @@ class BaseMCMCRoutine:
 
   def __init__(
       self,
-      output_directory : str | Path,
-      routine_name     : str,
-      x_values         : list | numpy.ndarray,
-      y_values         : list | numpy.ndarray,
-      initial_params   : tuple[float, ...] | None = None,
-      prior_kde        : None = None,
-      likelihood_sigma : float = 1.0,
-      y_data_label     : str | None = None,
-      fitted_param_labels     : list[str] = [],
-      verbose          : bool = True
+      *,
+      output_directory    : str | Path,
+      routine_name        : str,
+      x_values            : list | numpy.ndarray,
+      y_values            : list | numpy.ndarray,
+      initial_params      : tuple[float, ...],
+      prior_kde           = None,
+      likelihood_sigma    : float = 1.0,
+      y_data_label        : str | None = None,
+      fitted_param_labels : list[str] = [],
+      verbose             : bool = True,
+      debug_mode          : bool = False,
     ):
     self.output_directory    = output_directory
     self.routine_name        = routine_name
@@ -59,6 +62,7 @@ class BaseMCMCRoutine:
     self.y_data_label        = y_data_label
     self.fitted_param_labels = fitted_param_labels
     self.verbose             = verbose
+    self.debug_mode          = debug_mode
     self._validate_inputs()
     self.fitted_posterior_samples = None
     self.fitted_posterior_kde     = None
@@ -79,17 +83,21 @@ class BaseMCMCRoutine:
 
   def sample_posterior(
       self,
-      num_walkers   : int = 200,
-      num_steps     : int = 5000,
-      burn_in_steps : int = 2000,
+      num_walkers   : int = 100,
+      num_steps     : int = 3000,
+      burn_in_steps : int = 1000,
     ):
     if not self._check_params_are_valid(self.initial_params, print_errors=True):
       raise ValueError("Initial guess is invalid!")
-    print("Estimating parameters...")
+    print("Estimating the posterior...")
     self.num_walkers = num_walkers
     perturbed_params = numpy.array(self.initial_params) + 1e-4 * numpy.random.randn(self.num_walkers, self.num_params)
     mcmc_sampler = emcee.EnsembleSampler(self.num_walkers, self.num_params, self._log_posterior)
-    mcmc_sampler.run_mcmc(perturbed_params, num_steps)
+    for _ in tqdm(
+      mcmc_sampler.sample(perturbed_params, iterations=num_steps),
+      total = num_steps
+      ):
+      pass
     self.raw_chain = mcmc_sampler.get_chain()
     self.fitted_posterior_samples = mcmc_sampler.get_chain(discard=burn_in_steps, thin=10, flat=True)
     self.output_posterior_samples, self.output_param_labels = self._get_output_params()
@@ -98,18 +106,28 @@ class BaseMCMCRoutine:
       self.fitted_posterior_kde = gaussian_kde(self.fitted_posterior_samples.T, bw_method="scott")
       self.output_posterior_kde = self.fitted_posterior_kde
     else:
-      print("Estimating the KDE of both the fitted and output posterior...")
+      print("Estimating the KDE of both the fitted and output posteriors...")
       self.fitted_posterior_kde = gaussian_kde(self.fitted_posterior_samples.T, bw_method="scott")
       self.output_posterior_kde = gaussian_kde(self.output_posterior_samples.T, bw_method="scott")
     self._make_plots()
+
+  def _log_posterior(self, param_vector):
+    lp_value = self._log_prior(param_vector)
+    if not numpy.isfinite(lp_value): return -numpy.inf
+    ll_value = self._log_likelihood(param_vector)
+    return lp_value + ll_value
 
   def _log_prior(self, param_vector):
     if not self._check_params_are_valid(param_vector):
       return -numpy.inf
     if self.prior_kde is not None:
-      param_array = numpy.asarray(param_vector)
-      return self.prior_kde.logpdf(param_array.reshape(-1, 1))[0]
+      kde_vector = self._get_kde_eval_params(param_vector)
+      lp_value = self.prior_kde.logpdf(kde_vector.reshape(-1, 1))[0]
+      return lp_value
     return 0
+
+  def _get_kde_eval_params(self, param_vector: tuple[float, ...]) -> numpy.ndarray:
+    return numpy.asarray(param_vector)
 
   def _log_likelihood(self, param_vector):
     if not self._check_params_are_valid(param_vector):
@@ -123,12 +141,6 @@ class BaseMCMCRoutine:
     except Exception as error:
       print("Error in likelihood:", error, param_vector)
       return -numpy.inf
-
-  def _log_posterior(self, param_vector):
-    lp_value = self._log_prior(param_vector)
-    if not numpy.isfinite(lp_value): return -numpy.inf
-    ll_value = self._log_likelihood(param_vector)
-    return lp_value + ll_value
 
   def _make_plots(self):
     plot_chain_evolution.PlotChainEvolution(self).plot()

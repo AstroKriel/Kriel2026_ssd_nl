@@ -1,44 +1,98 @@
 ## ###############################################################
 ## DEPENDANCIES
 ## ###############################################################
+
+import re
 import sys
 import numpy
 from pathlib import Path
-from jormi.ww_io import io_manager, csv_files
+from jormi.ww_io import io_manager, json_files
+from jormi.ww_data import interpolate_data
 from jormi.ww_plots import plot_manager
-from my_utils import ww_sims
 from ww_flash_sims.sim_io import read_vi_data
+
+
+## ###############################################################
+## HELPER FUNCTIONS
+## ###############################################################
+
+def extract_sim_params(sim_directory: str | Path):
+  sim_directory = str(sim_directory)
+  match_plasma_pattern = re.search(r"Re(\d+)/Mach([\d.]+)/Pm(\d+)", sim_directory)
+  if not match_plasma_pattern: raise ValueError(f"Could not extract plasma parameters from path: {sim_directory}")
+  Re   = int(match_plasma_pattern.group(1))
+  Mach = float(match_plasma_pattern.group(2))
+  Pm = int(match_plasma_pattern.group(3))
+  match_sim_pattern = re.search(r"/(\d+)(?:v\d+)?/?$", sim_directory)
+  if not match_sim_pattern: raise ValueError(f"Could not extract resolution from path: {sim_directory}")
+  Nres = int(match_sim_pattern.group(1))
+  return Mach, Re, Pm, Nres
+
+def load_data(sim_directory: str | Path, num_samples: int = 100):
+  Mach, Re, Pm, Nres = extract_sim_params(sim_directory)
+  sim_name = f"Mach{Mach}Re{Re}Pm{Pm}Nres{Nres}"
+  raw_time, raw_magnetic_energy = read_vi_data.read_vi_data(
+    directory    = sim_directory,
+    dataset_name = "mag"
+  )
+  subset_raw_time = raw_time[1:]
+  subset_raw_magnetic_energy = raw_magnetic_energy[1:]
+  interp_time, interp_magnetic_energy = interpolate_data.interpolate_1d(
+    x_values = subset_raw_time,
+    y_values = subset_raw_magnetic_energy,
+    x_interp = numpy.linspace(subset_raw_time[0], subset_raw_time[-1], num_samples),
+    kind     = "linear"
+  )
+  return {
+    "sim_name" : sim_name,
+    "sim_directory" : str(sim_directory),
+    "plasma_params" : {
+      "t_turb" : 0.5 / Mach,
+      "Mach" : Mach,
+      "Re" : Re,
+      "Pm" : Pm,
+    },
+    "raw_data" : {
+      "time" : subset_raw_time,
+      "magnetic_energy" : subset_raw_magnetic_energy,
+    },
+    "interp_data" : {
+      "time": interp_time,
+      "magnetic_energy": interp_magnetic_energy,
+    }
+  }
 
 
 ## ###############################################################
 ## MAIN PROGRAM
 ## ###############################################################
+
 def main():
   script_directory = io_manager.get_caller_directory()
-  output_directory = io_manager.combine_file_path_parts([ script_directory, "data" ])
-  io_manager.init_directory(output_directory)
-  print(" ")
-  for sim_directory in sorted(Path("/scratch").glob("*/nk7952/Re500/Mach0.5/Pm1/576*")):
-    sim_name    = ww_sims.get_sim_name(sim_directory)
-    time, magnetic_energy = read_vi_data.read_vi_data(directory=sim_directory, dataset_name="mag")
-    data_dict   = ww_sims.load_data(sim_directory)
-    fig, axs    = plot_manager.create_figure(num_rows=2, share_x=True)
-    raw_params = dict(color="red", ls="-", lw=1, zorder=5)
-    sampled_params = dict(color="black", marker="o", ms=3, zorder=3)
-    print(len(time), len(data_dict["time"]))
-    axs[0].plot(time, magnetic_energy, **raw_params)
-    axs[1].plot(time, numpy.log10(magnetic_energy), **raw_params)
-    axs[0].plot(data_dict["time"], data_dict["magnetic_energy"], **sampled_params)
-    axs[1].plot(data_dict["time"], numpy.log10(data_dict["magnetic_energy"]), **sampled_params)
-    axs[0].set_ylabel("$\mathrm{energy}$")
-    axs[1].set_ylabel("$\log_{10}(\mathrm{energy})$")
-    axs[1].set_xlabel("time")
-    fig_file_name = f"{sim_name}.png"
-    fig_file_path = io_manager.combine_file_path_parts([ output_directory, fig_file_name ])
+  base_output_directory = io_manager.combine_file_path_parts([ script_directory, "sim_data" ])
+  io_manager.init_directory(base_output_directory, verbose=False)
+  sim_directories = sorted(Path("/scratch").glob("*/nk7952/R*/Mach*/Pm*/576*"))
+  for sim_directory in sim_directories:
+    data_dict = load_data(sim_directory)
+    sim_name = data_dict["sim_name"]
+    sim_output_directory = io_manager.combine_file_path_parts([ base_output_directory, sim_name ])
+    io_manager.init_directory(sim_output_directory)
+    raw_plot_params     = dict(color="red", ls="-", lw=1, zorder=5)
+    sampled_plot_params = dict(color="black", marker="o", ms=3, zorder=3)
+    fig, axs = plot_manager.create_figure(num_rows=2, share_x=True)
+    axs[0].plot(data_dict["raw_data"]["time"],             data_dict["raw_data"]["magnetic_energy"],  **raw_plot_params)
+    axs[1].plot(data_dict["raw_data"]["time"], numpy.log10(data_dict["raw_data"]["magnetic_energy"]), **raw_plot_params)
+    axs[0].plot(data_dict["interp_data"]["time"],             data_dict["interp_data"]["magnetic_energy"],  **sampled_plot_params)
+    axs[1].plot(data_dict["interp_data"]["time"], numpy.log10(data_dict["interp_data"]["magnetic_energy"]), **sampled_plot_params)
+    axs[0].set_ylabel(r"$\mathrm{energy}$")
+    axs[1].set_ylabel(r"$\log_{10}(\mathrm{energy})$")
+    axs[1].set_xlabel(r"time")
+    fig_file_name = f"dataset.png"
+    fig_file_path = io_manager.combine_file_path_parts([ sim_output_directory, fig_file_name ])
     plot_manager.save_figure(fig, fig_file_path)
-    csv_file_name = f"{sim_name}.csv"
-    csv_file_path = io_manager.combine_file_path_parts([ output_directory, csv_file_name ])
-    csv_files.save_dict_to_csv_file(csv_file_path, data_dict, overwrite=True)
+    json_file_name = f"dataset.json"
+    json_file_path = io_manager.combine_file_path_parts([ sim_output_directory, json_file_name ])
+    json_files.save_dict_to_json_file(json_file_path, data_dict, overwrite=True)
     print(" ")
 
 

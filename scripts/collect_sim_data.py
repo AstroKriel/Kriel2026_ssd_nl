@@ -18,19 +18,21 @@ from ww_flash_sims.sim_io import read_vi_data
 
 def extract_sim_params(sim_directory: str | Path):
   sim_directory = str(sim_directory)
+  print(sim_directory)
   match_plasma_pattern = re.search(r"Re(\d+)/Mach([\d.]+)/Pm(\d+)", sim_directory)
   if not match_plasma_pattern: raise ValueError(f"Could not extract plasma parameters from path: {sim_directory}")
-  Re   = int(match_plasma_pattern.group(1))
-  Mach = float(match_plasma_pattern.group(2))
-  Pm = int(match_plasma_pattern.group(3))
-  match_sim_pattern = re.search(r"/(\d+)(?:v\d+)?/?$", sim_directory)
+  Mach_number = float(match_plasma_pattern.group(2))
+  Re_number   = int(match_plasma_pattern.group(1))
+  Pm_number   = int(match_plasma_pattern.group(3))
+  match_sim_pattern = re.search(r"/(\d+)(?:v(\d+))?/?$", sim_directory)
   if not match_sim_pattern: raise ValueError(f"Could not extract resolution from path: {sim_directory}")
-  Nres = int(match_sim_pattern.group(1))
-  return Mach, Re, Pm, Nres
+  Nres_number    = int(match_sim_pattern.group(1))
+  version_number = int(match_sim_pattern.group(2)) if match_sim_pattern.group(2) else 1
+  return Mach_number, Re_number, Pm_number, Nres_number, version_number
 
 def load_data(sim_directory: str | Path, num_samples: int = 100):
-  Mach, Re, Pm, Nres = extract_sim_params(sim_directory)
-  sim_name = f"Mach{Mach}Re{Re}Pm{Pm}Nres{Nres}"
+  Mach_number, Re_number, Pm_number, Nres_number, version_number = extract_sim_params(sim_directory)
+  sim_name = f"Mach{Mach_number}Re{Re_number}Pm{Pm_number}Nres{Nres_number}v{version_number}"
   raw_time, raw_magnetic_energy = read_vi_data.read_vi_data(
     directory    = sim_directory,
     dataset_name = "mag"
@@ -47,10 +49,10 @@ def load_data(sim_directory: str | Path, num_samples: int = 100):
     "sim_name" : sim_name,
     "sim_directory" : str(sim_directory),
     "plasma_params" : {
-      "t_turb" : 0.5 / Mach,
-      "Mach" : Mach,
-      "Re" : Re,
-      "Pm" : Pm,
+      "t_turb" : 0.5 / Mach_number,
+      "Mach" : Mach_number,
+      "Re" : Re_number,
+      "Pm" : Pm_number,
     },
     "raw_data" : {
       "time" : subset_raw_time,
@@ -69,7 +71,7 @@ def load_data(sim_directory: str | Path, num_samples: int = 100):
 
 def main():
   script_directory = io_manager.get_caller_directory()
-  base_output_directory = io_manager.combine_file_path_parts([ script_directory, "sim_data" ])
+  base_output_directory = io_manager.combine_file_path_parts([ script_directory, "..", "data" ])
   io_manager.init_directory(base_output_directory, verbose=False)
   sim_directories = sorted(Path("/scratch").glob("*/nk7952/R*/Mach*/Pm*/576*"))
   for sim_directory in sim_directories:
@@ -77,12 +79,12 @@ def main():
     sim_name = data_dict["sim_name"]
     sim_output_directory = io_manager.combine_file_path_parts([ base_output_directory, sim_name ])
     io_manager.init_directory(sim_output_directory)
-    raw_plot_params     = dict(color="red", ls="-", lw=1, zorder=5)
+    raw_plot_params = dict(color="red", ls="-", lw=1, zorder=5)
     sampled_plot_params = dict(color="black", marker="o", ms=3, zorder=3)
     fig, axs = plot_manager.create_figure(num_rows=2, share_x=True)
-    axs[0].plot(data_dict["raw_data"]["time"],             data_dict["raw_data"]["magnetic_energy"],  **raw_plot_params)
+    axs[0].plot(data_dict["raw_data"]["time"], data_dict["raw_data"]["magnetic_energy"], **raw_plot_params)
     axs[1].plot(data_dict["raw_data"]["time"], numpy.log10(data_dict["raw_data"]["magnetic_energy"]), **raw_plot_params)
-    axs[0].plot(data_dict["interp_data"]["time"],             data_dict["interp_data"]["magnetic_energy"],  **sampled_plot_params)
+    axs[0].plot(data_dict["interp_data"]["time"], data_dict["interp_data"]["magnetic_energy"], **sampled_plot_params)
     axs[1].plot(data_dict["interp_data"]["time"], numpy.log10(data_dict["interp_data"]["magnetic_energy"]), **sampled_plot_params)
     axs[0].set_ylabel(r"$\mathrm{energy}$")
     axs[1].set_ylabel(r"$\log_{10}(\mathrm{energy})$")

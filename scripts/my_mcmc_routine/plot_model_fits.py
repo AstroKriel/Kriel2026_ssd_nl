@@ -19,10 +19,10 @@ class PlotModelFits:
     self.output_directory         = mcmc_routine.output_directory
     self.x_values                 = mcmc_routine.x_values
     self.y_values                 = mcmc_routine.y_values
-    self.y_label                  = mcmc_routine.y_label
-    self.model_func               = mcmc_routine._model
+    self.data_label               = mcmc_routine.data_label
     self.num_params               = mcmc_routine.num_params
     self.fitted_posterior_samples = mcmc_routine.fitted_posterior_samples
+    self.model_func               = mcmc_routine._model
     self._annotate_fitted_params  = mcmc_routine._annotate_fitted_params
     self._annotate_output_params  = mcmc_routine._annotate_output_params
 
@@ -33,10 +33,10 @@ class PlotModelFits:
     self._plot_residuals(axs)
     self._annotate_fitted_params(axs)
     self._annotate_output_params(axs)
-    if self.y_label is not None:
-      axs[0].set_ylabel(self.y_label)
-      stripped_y_data_label = self.y_label.strip("$")
-      axs[1].set_ylabel(r"$\frac{d}{dt}\," + stripped_y_data_label + "$")
+    if self.data_label is not None:
+      axs[0].set_ylabel(self.data_label)
+      stripped_data_label = self.data_label.strip("$")
+      axs[1].set_ylabel(r"$\frac{d}{dt}\," + stripped_data_label + "$")
     axs[2].set_ylabel(r"median residuals")
     axs[2].set_xlabel(r"time")
     fig_name = f"{self.routine_name}_fit.png"

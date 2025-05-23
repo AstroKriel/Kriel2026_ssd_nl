@@ -31,28 +31,24 @@ class MCMCStage1Routine(base_mcmc.BaseMCMCRoutine):
   def __init__(
       self,
       *,
-      output_directory : str,
-      x_values         : list | numpy.ndarray,
-      y_values         : list | numpy.ndarray,
-      initial_params   : tuple[float, ...],
-      likelihood_sigma : float = 1.0,
-      prior_kde        : callable = None,
-      verbose          : bool = True,
-      plot_kde         : bool = False
+      output_directory   : str,
+      x_values           : list | numpy.ndarray,
+      y_values           : list | numpy.ndarray,
+      initial_params     : tuple[float, ...],
+      likelihood_sigma   : float = 1.0,
+      plot_posterior_kde : bool = False
     ):
     self.log10_e  = numpy.log10(numpy.exp(1))
     self.max_time = numpy.max(x_values)
     super().__init__(
-      output_directory    = output_directory,
       routine_name        = "stage1",
-      verbose             = verbose,
-      plot_kde            = plot_kde,
+      output_directory    = output_directory,
       x_values            = x_values,
       y_values            = numpy.log10(y_values),
-      likelihood_sigma    = likelihood_sigma,
       initial_params      = initial_params,
-      prior_kde           = prior_kde,
-      y_label             = r"$\log_{10}(E_{\mathrm{mag}})$",
+      likelihood_sigma    = likelihood_sigma,
+      plot_posterior_kde  = plot_posterior_kde,
+      data_label          = r"$\log_{10}(E_{\mathrm{mag}})$",
       fitted_param_labels = [
         r"$\log_{10}(E_{\mathrm{init}})$",
         r"$\gamma$",

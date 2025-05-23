@@ -31,11 +31,10 @@ class KDEProjectionParams(NamedTuple):
 class PlotModelPosteriors:
 
   def __init__(self, mcmc_routine):
-    self.output_directory = mcmc_routine.output_directory
-    self.routine_name     = mcmc_routine.routine_name
-    self.num_params       = mcmc_routine.num_params
-    self.verbose          = mcmc_routine.verbose
-    self.plot_kde         = mcmc_routine.plot_kde
+    self.output_directory   = mcmc_routine.output_directory
+    self.routine_name       = mcmc_routine.routine_name
+    self.num_params         = mcmc_routine.num_params
+    self.plot_posterior_kde = mcmc_routine.plot_posterior_kde
     ## fitted params
     self.fitted_posterior_samples = mcmc_routine.fitted_posterior_samples
     self.fitted_posterior_kde     = mcmc_routine.fitted_posterior_kde
@@ -82,9 +81,9 @@ class PlotModelPosteriors:
           self._plot_jpdf(ax, row_index, col_index, posterior_samples)
         else: ax.axis("off")
     self._annotate_plot(axs, param_ranges, param_labels)
-    if self.plot_kde: self._plot_kde_projections(axs, posterior_samples, posterior_kde, param_ranges)
+    if self.plot_posterior_kde: self._plot_kde_projections(axs, posterior_samples, posterior_kde, param_ranges)
     file_path = io_manager.combine_file_path_parts([ self.output_directory, fig_name ])
-    plot_manager.save_figure(fig, file_path, verbose=self.verbose)
+    plot_manager.save_figure(fig, file_path, verbose=True)
 
   def _plot_pdf(self, ax, param_index, posterior_samples, param_labels):
     bin_centers, estimated_pdf = compute_stats.estimate_pdf(

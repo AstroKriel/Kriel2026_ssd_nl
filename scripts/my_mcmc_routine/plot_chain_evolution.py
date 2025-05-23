@@ -19,7 +19,6 @@ class PlotChainEvolution:
     self.labels           = mcmc_routine.fitted_param_labels
     self.routine_name     = mcmc_routine.routine_name
     self.output_directory = mcmc_routine.output_directory
-    self.verbose          = mcmc_routine.verbose
 
   def plot(self):
     fig, axs = plot_manager.create_figure(num_rows=self.num_params, num_cols=1, share_x=True)

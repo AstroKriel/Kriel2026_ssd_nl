@@ -3,9 +3,11 @@
 ## ###############################################################
 
 import numpy
+import argparse
+from pathlib import Path
 from jormi.utils import list_utils
-from jormi.ww_io import io_manager
-from my_utils import ww_sims, ww_mcmc
+from jormi.ww_io import io_manager, json_files
+import my_mcmc_routine
 
 
 ## ###############################################################
@@ -18,34 +20,38 @@ def compute_median_params_from_kde(kde, num_samples=10000):
 
 
 ## ###############################################################
-## MCMC mcmc_routine
+## PROGRAM MAIN
 ## ###############################################################
-def mcmc_routine(sim_directory, level1_output_directory, verbose=True):
-  sim_name = ww_sims.get_sim_name(sim_directory)
-  level2_output_directory = io_manager.combine_file_path_parts([ level1_output_directory, sim_name ])
-  io_manager.init_directory(level2_output_directory, verbose=False)
-  data_dict = ww_sims.load_data(sim_directory, num_samples=500)
-  x_values  = data_dict["time"]
-  y_values  = data_dict["magnetic_energy"]
-  ## stage 1 MCMC fitter
+
+def main():
+  parser = argparse.ArgumentParser(description="Run MCMC fitting routine.")
+  parser.add_argument("-data_directory", type=str, required=True)
+  data_directory = Path(parser.parse_args().data_directory).resolve()
+  data_path = io_manager.combine_file_path_parts([ data_directory, "dataset.json" ])
+  ## read in energy evolution
+  data_dict = json_files.read_json_file_into_dict(data_path)
+  x_values = data_dict["interp_data"]["time"]
+  y_values = data_dict["interp_data"]["magnetic_energy"]
+  ## build initial guess for stage 1
   stage1_initial_params = (
     -20, # log10(E_init)
     0.5, # log10(E_sat)
     0.5 * numpy.max(x_values) # gammma
   )
-  stage1_mcmc = ww_mcmc.MCMCStage1Routine(
-    output_directory = level2_output_directory,
-    x_values         = x_values,
-    y_values         = y_values,
-    initial_params   = stage1_initial_params,
-    verbose          = verbose,
-    plot_kde         = True
+  ## run stage 1 fitter
+  stage1_mcmc = my_mcmc_routine.MCMCStage1Routine(
+    output_directory   = data_directory,
+    x_values           = x_values,
+    y_values           = y_values,
+    initial_params     = stage1_initial_params,
+    plot_posterior_kde = False
   )
   stage1_mcmc.estimate_posterior()
-  ## stage 2 MCMC fitter
-  stage2_prior_kde = stage1_mcmc.output_posterior_kde
-  stage1_median_output_params = compute_median_params_from_kde(stage2_prior_kde)
+  ## extract key outputs from stage 1
   stage1_median_transition_time = numpy.median(stage1_mcmc.fitted_posterior_samples[:,2])
+  stage2_prior_kde = stage1_mcmc.output_posterior_kde
+  ## build initial guess for stage 2
+  stage1_median_output_params = compute_median_params_from_kde(stage2_prior_kde)
   stage2_initial_params = (
     stage1_median_output_params[0], # log10(E_init)
     stage1_median_output_params[1], # log10(E_sat)
@@ -55,36 +61,24 @@ def mcmc_routine(sim_directory, level1_output_directory, verbose=True):
   )
   approx_transition_index = list_utils.get_index_of_closest_value(x_values, stage1_median_transition_time)
   stage2_likelihood_sigma = numpy.std(y_values[approx_transition_index:])
-  stage2_mcmc = ww_mcmc.MCMCStage2Routine(
-    output_directory = level2_output_directory,
-    x_values         = x_values,
-    y_values         = y_values,
-    likelihood_sigma = stage2_likelihood_sigma,
-    initial_params   = stage2_initial_params,
-    prior_kde        = stage2_prior_kde,
-    verbose          = verbose,
-    plot_kde         = True
+  ## run stage 2 fitter
+  stage2_mcmc = my_mcmc_routine.MCMCStage2Routine(
+    output_directory   = data_directory,
+    x_values           = x_values,
+    y_values           = y_values,
+    initial_params     = stage2_initial_params,
+    prior_kde          = stage2_prior_kde,
+    likelihood_sigma   = stage2_likelihood_sigma,
+    plot_posterior_kde = True
   )
-  stage2_mcmc.estimate_posterior(num_walkers=50, num_steps=3000)
-  ww_mcmc.plot_final_fits.PlotFinalFits(stage2_mcmc).plot()
-
-
-## ###############################################################
-## PROGRAM MAIN
-## ###############################################################
-def main():
-  script_directory = io_manager.get_caller_directory()
-  output_directory = io_manager.combine_file_path_parts([ script_directory, "mcmc_fits" ])
-  io_manager.init_directory(output_directory, verbose=False)
-  mcmc_routine(
-    sim_directory           = "/scratch/jh2/nk7952/Re1500/Mach2/Pm1/576v4",
-    level1_output_directory = output_directory,
-  )
+  stage2_mcmc.estimate_posterior()
+  my_mcmc_routine.plot_final_fits.PlotFinalFits(stage2_mcmc).plot()
 
 
 ## ###############################################################
 ## SCRIPT ENTRY POINT
 ## ###############################################################
+
 if __name__ == "__main__":
   main()
 

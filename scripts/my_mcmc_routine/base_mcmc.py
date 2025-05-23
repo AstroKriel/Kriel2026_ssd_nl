@@ -11,6 +11,7 @@ from tqdm import tqdm
 from pathlib import Path
 from collections import deque
 from scipy.stats import gaussian_kde
+from jormi.ww_io import io_manager
 from . import plot_chain_evolution
 from . import plot_model_posteriors
 from . import plot_model_fits
@@ -26,13 +27,15 @@ class BaseMCMCRoutine:
   Subclasses must define a model and parameter validation logic.
   """
 
-  ## abstract methods that need to be implemented by subclasses
+  ## methods that need to be implemented by each subclass
 
   def _model(self, param_vectors):
     raise NotImplementedError()
 
   def _get_valid_params_mask(self, param_vectors):
     raise NotImplementedError()
+
+  ## hooks that can be overwritten by each subclass
 
   def _get_kde_params(self, param_vectors):
     return numpy.asarray(param_vectors)
@@ -51,30 +54,28 @@ class BaseMCMCRoutine:
   def __init__(
       self,
       *,
-      output_directory    : str | Path,
       routine_name        : str,
+      output_directory    : str | Path,
       x_values            : list | numpy.ndarray,
       y_values            : list | numpy.ndarray,
       initial_params      : tuple[float, ...],
       prior_kde           : callable = None,
       likelihood_sigma    : float = 1.0,
-      y_label             : str | None = None,
+      plot_posterior_kde  : bool = False,
+      data_label          : str | None = None,
       fitted_param_labels : list[str] = [],
-      verbose             : bool = True,
-      plot_kde            : bool = False,
     ):
-    self.output_directory    = output_directory
     self.routine_name        = routine_name
+    self.output_directory    = output_directory
     self.x_values            = numpy.asarray(x_values)
     self.y_values            = numpy.asarray(y_values)
     self.initial_params      = initial_params
     self.num_params          = len(self.initial_params)
-    self.prior_kde           = prior_kde
+    self._prior_logpdf       = prior_kde.logpdf if prior_kde is not None else None
     self.likelihood_sigma    = likelihood_sigma
-    self.y_label             = y_label
+    self.data_label          = data_label
     self.fitted_param_labels = fitted_param_labels
-    self.verbose             = verbose
-    self.plot_kde            = plot_kde
+    self.plot_posterior_kde  = plot_posterior_kde
     self._validate_inputs()
     ## define key outputs
     self.raw_chain                = None
@@ -129,8 +130,9 @@ class BaseMCMCRoutine:
       print("Estimating the KDE of both the fitted and output posteriors...")
       self.fitted_posterior_kde = gaussian_kde(self.fitted_posterior_samples.T, bw_method="scott")
       self.output_posterior_kde = gaussian_kde(self.output_posterior_samples.T, bw_method="scott")
-    ## create diagnostic plots
+    ## create diagnostic outputs
     self._make_plots()
+    self._save_samples_to_disk()
 
   def _log_posterior(self, param_vectors):
     lp_values = self._log_prior(param_vectors)
@@ -143,10 +145,10 @@ class BaseMCMCRoutine:
     valid_params_mask = self._get_valid_params_mask(param_vectors)
     num_local_walkers = param_vectors.shape[0]
     lp_values = numpy.full(num_local_walkers, -numpy.inf)
-    if self.prior_kde is not None:
+    if self._prior_logpdf is not None:
       valid_params = numpy.atleast_2d(param_vectors[valid_params_mask])
       kde_vector   = self._get_kde_params(valid_params)
-      kde_logpdfs  = self.prior_kde.logpdf(kde_vector.T)
+      kde_logpdfs  = self._prior_logpdf(kde_vector.T)
       lp_values[valid_params_mask] = kde_logpdfs
     else: lp_values[valid_params_mask] = 0.0 # uniform prior
     return lp_values
@@ -162,7 +164,7 @@ class BaseMCMCRoutine:
       valid_params = param_vectors[valid_params_mask]
       modelled_y   = self._model(valid_params)
       measured_y   = numpy.asarray(self.y_values)
-      ## add leading dimension to measured data so it broadcasts across vectorised param-rows
+      ## add a leading dimension to the measured data so it broadcasts across the vectorised param-rows
       y_residuals  = measured_y[None, :] - modelled_y
       ll_values[valid_params_mask] = -0.5 * numpy.sum(numpy.square(y_residuals / self.likelihood_sigma), axis=1)
     except Exception as error:
@@ -185,6 +187,13 @@ class BaseMCMCRoutine:
     plot_chain_evolution.PlotChainEvolution(self).plot()
     plot_model_posteriors.PlotModelPosteriors(self).plot()
     plot_model_fits.PlotModelFits(self).plot()
+
+  def _save_samples_to_disk(self):
+    fitted_posterior_path = io_manager.combine_file_path_parts([ self.output_directory, f"{self.routine_name}_fitted_posterior_samples.npy" ])
+    output_posterior_path = io_manager.combine_file_path_parts([ self.output_directory, f"{self.routine_name}_output_posterior_samples.npy" ])
+    numpy.save(fitted_posterior_path, self.fitted_posterior_samples)
+    if not numpy.array_equal(self.output_posterior_samples, self.fitted_posterior_samples):
+      numpy.save(output_posterior_path, self.output_posterior_samples)
 
 
 ## END OF MODULE

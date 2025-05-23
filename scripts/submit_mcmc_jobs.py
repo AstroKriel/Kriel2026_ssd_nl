@@ -11,7 +11,7 @@ from jormi.ww_jobs import pbs_job_manager
 ## ###############################################################
 ## HELPER FUNCTIONS
 ## ###############################################################
-def submit_job(data_directory, job_tags_in_queue):
+def submit_job(data_directory, queued_job_tags):
   data_path = io_manager.combine_file_path_parts([ data_directory, "dataset.json" ])
   data_dict = json_files.read_json_file_into_dict(data_path, verbose=False)
   command_path = io_manager.combine_file_path_parts([ "fit_with_mcmc.py" ])
@@ -29,11 +29,11 @@ def submit_job(data_directory, job_tags_in_queue):
     wall_time_hours    = 2,
     storage_group_name = "jh2",
     email_address      = "neco.kriel@anu.edu.au",
-    email_on_start     = True,
-    email_on_finish    = True,
+    email_on_start     = False,
+    email_on_finish    = False,
     verbose            = True,
   )
-  if job_tag in job_tags_in_queue:
+  if job_tag in queued_job_tags:
     print(f"Job ({job_tag}) is already in the pbs queue.")
     return
   shell_manager.execute_shell_command(
@@ -48,15 +48,28 @@ def submit_job(data_directory, job_tags_in_queue):
 ## ###############################################################
 
 def main():
+  ## collect data directories
   base_directory = Path("../data/").resolve()
   data_directories = io_manager.ItemFilter(
     include_string = ["Mach", "Re", "Pm", "Nres"]
   ).filter(
     directory = base_directory
   )
-  job_tags_in_queue = pbs_job_manager.get_list_of_queued_jobs()
-  for data_directory in data_directories[:3]:
-    submit_job(data_directory, job_tags_in_queue)
+  ## collect queued jobs
+  queued_jobs = pbs_job_manager.get_list_of_queued_jobs()
+  queued_job_tags = [
+    job_tag
+    for _, job_tag in queued_jobs
+  ]
+  # ## delete mcmc jobs from queue
+  # [
+  #   shell_manager.execute_shell_command(command=f"qdel {job_id}", timeout_seconds=30)
+  #   for job_id, job_tag in queued_jobs
+  #   if "_mcmc" in job_tag
+  # ]
+  ## create and submit mcmc job
+  for data_directory in data_directories:
+    submit_job(data_directory, queued_job_tags)
     print(" ")
 
 

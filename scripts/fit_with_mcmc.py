@@ -24,15 +24,16 @@ def compute_median_params_from_kde(kde, num_samples=10000):
 ## ###############################################################
 
 def main():
+  ## collect user arguments
   parser = argparse.ArgumentParser(description="Run MCMC fitting routine.")
   parser.add_argument("-data_directory", type=str, required=True)
   data_directory = Path(parser.parse_args().data_directory).resolve()
+  ## read in magnetic energy evolution
   data_path = io_manager.combine_file_path_parts([ data_directory, "dataset.json" ])
-  ## read in energy evolution
   data_dict = json_files.read_json_file_into_dict(data_path)
   x_values = data_dict["interp_data"]["time"]
   y_values = data_dict["interp_data"]["magnetic_energy"]
-  ## build initial guess for stage 1
+  ## build initial guess for stage 1: exponential + saturation
   stage1_initial_params = (
     -20, # log10(E_init)
     0.5, # log10(E_sat)
@@ -44,13 +45,13 @@ def main():
     x_values           = x_values,
     y_values           = y_values,
     initial_params     = stage1_initial_params,
-    plot_posterior_kde = False
+    plot_posterior_kde = True
   )
   stage1_mcmc.estimate_posterior()
   ## extract key outputs from stage 1
   stage1_median_transition_time = numpy.median(stage1_mcmc.fitted_posterior_samples[:,2])
   stage2_prior_kde = stage1_mcmc.output_posterior_kde
-  ## build initial guess for stage 2
+  ## build initial guess for stage 2: exponential + linear backreaction + saturation
   stage1_median_output_params = compute_median_params_from_kde(stage2_prior_kde)
   stage2_initial_params = (
     stage1_median_output_params[0], # log10(E_init)
@@ -72,6 +73,7 @@ def main():
     plot_posterior_kde = True
   )
   stage2_mcmc.estimate_posterior()
+  ## plot the measured vs modelled energy evolution (both in linear and log10-transformed domains)
   my_mcmc_routine.plot_final_fits.PlotFinalFits(stage2_mcmc).plot()
 
 

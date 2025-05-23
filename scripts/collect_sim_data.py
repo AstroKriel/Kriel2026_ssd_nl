@@ -18,7 +18,6 @@ from ww_flash_sims.sim_io import read_vi_data
 
 def extract_sim_params(sim_directory: str | Path):
   sim_directory = str(sim_directory)
-  print(sim_directory)
   match_plasma_pattern = re.search(r"Re(\d+)/Mach([\d.]+)/Pm(\d+)", sim_directory)
   if not match_plasma_pattern: raise ValueError(f"Could not extract plasma parameters from path: {sim_directory}")
   Mach_number = float(match_plasma_pattern.group(2))
@@ -42,7 +41,7 @@ def load_data(sim_directory: str | Path, num_samples: int = 100):
   interp_time, interp_magnetic_energy = interpolate_data.interpolate_1d(
     x_values = subset_raw_time,
     y_values = subset_raw_magnetic_energy,
-    x_interp = numpy.linspace(subset_raw_time[0], subset_raw_time[-1], num_samples),
+    x_interp = numpy.linspace(subset_raw_time[0], subset_raw_time[-1], num_samples), # TODO: sample size should be based on t_turb
     kind     = "linear"
   )
   return {
@@ -70,7 +69,7 @@ def load_data(sim_directory: str | Path, num_samples: int = 100):
 ## ###############################################################
 
 def main():
-  script_directory = io_manager.get_caller_directory()
+  script_directory = io_manager.get_caller_directory() # not strictly necessary
   base_output_directory = io_manager.combine_file_path_parts([ script_directory, "..", "data" ])
   io_manager.init_directory(base_output_directory, verbose=False)
   sim_directories = sorted(Path("/scratch").glob("*/nk7952/R*/Mach*/Pm*/576*"))

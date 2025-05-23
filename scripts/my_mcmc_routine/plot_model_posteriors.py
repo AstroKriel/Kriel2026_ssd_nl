@@ -111,17 +111,23 @@ class PlotModelPosteriors:
       target    = pdf_threshold,
       direction = "rising"
     )
-    index_stop = list_utils.find_first_crossing(
-      values    = estimated_pdf[index_start:],
-      target    = pdf_threshold,
-      direction = "falling"
-    )
-    if index_stop is not None:
-      index_stop += index_start
-    param_min = bin_centers[index_start]
-    param_max = bin_centers[index_stop] if (index_stop is not None) else bin_centers[-1]
+    if index_start is None:
+      param_min = bin_centers[0]
+      param_max = bin_centers[-1]
+    else:
+      index_stop = list_utils.find_first_crossing(
+        values    = estimated_pdf[index_start:],
+        target    = pdf_threshold,
+        direction = "falling"
+      )
+      if index_stop is not None:
+        index_stop += index_start
+        param_max = bin_centers[index_stop]
+      else:
+        param_max = bin_centers[-1]
+      param_min = bin_centers[index_start]
     range_width = param_max - param_min
-    padding = 2.5/100 * range_width
+    padding = 2.5 / 100 * range_width
     padded_range = (
       param_min - padding,
       param_max + padding

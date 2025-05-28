@@ -95,8 +95,8 @@ class BaseMCMCRoutine:
   def estimate_posterior(
       self,
       num_walkers   : int = 200,
-      num_steps     : int = 7000,
-      burn_in_steps : int = 1000,
+      num_steps     : int = 1e4,
+      burn_in_steps : int = 1e3,
     ):
     if not self._get_valid_params_mask(self.initial_params):
       raise ValueError("Initial guess is invalid!")
@@ -132,7 +132,7 @@ class BaseMCMCRoutine:
       self.output_posterior_kde = gaussian_kde(self.output_posterior_samples.T, bw_method="scott")
     ## create diagnostic outputs
     self._make_plots()
-    self._save_samples_to_disk()
+    self._save_posterior_samples()
 
   def _log_posterior(self, param_vectors):
     lp_values = self._log_prior(param_vectors)
@@ -188,7 +188,7 @@ class BaseMCMCRoutine:
     plot_model_posteriors.PlotModelPosteriors(self).plot()
     plot_model_fits.PlotModelFits(self).plot()
 
-  def _save_samples_to_disk(self):
+  def _save_posterior_samples(self):
     fitted_posterior_path = io_manager.combine_file_path_parts([ self.output_directory, f"{self.routine_name}_fitted_posterior_samples.npy" ])
     output_posterior_path = io_manager.combine_file_path_parts([ self.output_directory, f"{self.routine_name}_output_posterior_samples.npy" ])
     numpy.save(fitted_posterior_path, self.fitted_posterior_samples)

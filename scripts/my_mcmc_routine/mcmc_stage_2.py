@@ -77,12 +77,12 @@ class MCMCStage2Routine(base_mcmc.BaseMCMCRoutine):
     mask_sat_phase     = start_sat_time_2d < x_values_2d
     ## compute model constants (per walker)
     init_energy        = 10**log10_init_energy # (N,)
-    sat_energy         = 10**log10_sat_energy # (N,)
-    start_nl_energy    = init_energy * numpy.exp(gamma * start_nl_time) # (N,)
-    alpha              = (sat_energy - start_nl_energy) / (start_sat_time - start_nl_time) # (N,)
     init_energy_2d     = init_energy[:, None] # (N, 1)
+    sat_energy         = 10**log10_sat_energy # (N,)
     sat_energy_2d      = sat_energy[:, None] # (N, 1)
+    start_nl_energy    = init_energy * numpy.exp(gamma * start_nl_time) # (N,)
     start_nl_energy_2d = start_nl_energy[:, None] # (N, 1)
+    alpha              = (sat_energy - start_nl_energy) / (start_sat_time - start_nl_time) # (N,)
     alpha_2d           = alpha[:, None] # (N, 1)
     ## assemble modelled SSD phases
     energy = numpy.zeros((num_local_walkers, num_data_points))

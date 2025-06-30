@@ -57,11 +57,20 @@ def load_data(sim_directory: str | Path):
 ## ###############################################################
 
 def main():
-  script_directory = io_manager.get_caller_directory() # not strictly necessary
-  base_output_directory = io_manager.combine_file_path_parts([ script_directory, "..", "data" ])
+  base_output_directory = io_manager.combine_file_path_parts([ "/scratch/jh2/nk7952/kriel2025_nl_data" ])
   io_manager.init_directory(base_output_directory, verbose=False)
-  sim_directories = sorted(Path("/scratch").glob("*/nk7952/R*/Mach*/Pm*/576*"))
-  for sim_directory in sim_directories:
+  data_directories = sorted(Path("/scratch/").glob("*/nk7952/R*/Mach*/Pm*/*"))
+  data_directories = [
+    sim_directory
+    for sim_directory in data_directories
+    if any(sim_nres in str(sim_directory) for sim_nres in ["288", "576", "1152"]) and ("anti" not in str(sim_directory))
+  ]
+  [
+    print(sim_directory)
+    for sim_directory in data_directories
+  ]
+  print(" ")
+  for sim_directory in data_directories:
     data_dict = load_data(sim_directory)
     sim_name = data_dict["sim_name"]
     sim_output_directory = io_manager.combine_file_path_parts([ base_output_directory, sim_name ])

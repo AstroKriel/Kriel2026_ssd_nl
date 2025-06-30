@@ -14,12 +14,17 @@ from jormi.ww_jobs import pbs_job_manager
 def submit_job(data_directory, model_name, queued_job_tags):
   data_path = io_manager.combine_file_path_parts([ data_directory, "dataset.json" ])
   data_dict = json_files.read_json_file_into_dict(data_path, verbose=False)
-  command_path = io_manager.combine_file_path_parts([ "fit_with_mcmc.py" ])
-  sim_name  = data_dict["sim_name"]
-  job_tag   = f"{sim_name}_mcmc_{model_name}"
-  job_path  = pbs_job_manager.create_pbs_job_script(
+  sim_name = data_dict["sim_name"]
+  job_tag = f"{sim_name}_mcmc_{model_name}"
+  if job_tag in queued_job_tags:
+    print(f"Job ({job_tag}) is already in the pbs queue.")
+    return
+  job_directory = io_manager.combine_file_path_parts([ "/home/586/nk7952/asgard/mimir/kriel_2025_ssd_nl/mcmc_jobs", sim_name ])
+  io_manager.init_directory(job_directory)
+  command_path = Path("fit_with_mcmc.py").absolute()
+  job_path = pbs_job_manager.create_pbs_job_script(
     system_name        = "gadi",
-    directory          = data_directory,
+    directory          = job_directory,
     file_name          = f"mcmc_fit_{model_name}.sh",
     command            = f"uv run {command_path} -data_directory {data_directory} -model {model_name}",
     tag_name           = job_tag,
@@ -33,12 +38,9 @@ def submit_job(data_directory, model_name, queued_job_tags):
     email_on_finish    = False,
     verbose            = True,
   )
-  if job_tag in queued_job_tags:
-    print(f"Job ({job_tag}) is already in the pbs queue.")
-    return
   shell_manager.execute_shell_command(
     command           = f"qsub {job_path}",
-    working_directory = data_directory,
+    working_directory = job_directory,
     timeout_seconds   = 30,
   )
 
@@ -49,7 +51,7 @@ def submit_job(data_directory, model_name, queued_job_tags):
 
 def main():
   ## collect data directories
-  base_directory = Path("../data/").resolve()
+  base_directory = Path("/scratch/jh2/nk7952/kriel2025_nl_data/").resolve()
   data_directories = io_manager.ItemFilter(
     include_string = ["Mach", "Re", "Pm", "Nres"]
   ).filter(

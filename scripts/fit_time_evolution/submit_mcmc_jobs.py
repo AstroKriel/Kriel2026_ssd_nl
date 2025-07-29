@@ -28,7 +28,7 @@ def submit_job(data_directory, model_name, queued_job_tags):
     file_name          = f"mcmc_fit_{model_name}.sh",
     command            = f"uv run {command_path} -data_directory {data_directory} -model {model_name}",
     tag_name           = job_tag,
-    queue_name         = "jh2", # "rsaa",
+    queue_name         = "normal", # "rsaa",
     compute_group_name = "jh2", # "mk27",
     num_procs          = 2,
     wall_time_hours    = 24,

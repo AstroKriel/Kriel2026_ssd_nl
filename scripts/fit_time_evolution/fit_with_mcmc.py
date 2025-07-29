@@ -5,14 +5,13 @@
 import numpy
 import argparse
 from pathlib import Path
-from jormi.utils import list_utils
 from jormi.ww_io import io_manager, json_files
-from my_mcmc_routine.mcmc_stage_1 import Stage1MCMCRoutine
-from my_mcmc_routine.mcmc_stage_2_free import Stage2MCMCRoutine_free
-from my_mcmc_routine.mcmc_stage_2_linear import Stage2MCMCRoutine_linear
-from my_mcmc_routine.mcmc_stage_2_quadratic import Stage2MCMCRoutine_quadratic
-from my_mcmc_routine import mcmc_utils
-from my_mcmc_routine.plot_final_fits import PlotFinalFits
+from my_mcmc_fitting_routine.mcmc_stage_1 import Stage1MCMCRoutine
+from my_mcmc_fitting_routine.mcmc_stage_2_free import Stage2MCMCRoutine_free
+from my_mcmc_fitting_routine.mcmc_stage_2_linear import Stage2MCMCRoutine_linear
+from my_mcmc_fitting_routine.mcmc_stage_2_quadratic import Stage2MCMCRoutine_quadratic
+from my_mcmc_fitting_routine import mcmc_utils
+from my_mcmc_fitting_routine.plot_final_fits import PlotFinalFits
 
 
 ## ###############################################################
@@ -53,9 +52,6 @@ def main():
       x_values = subset_time_values,
       y_values = subset_magnetic_energy,
       num_bins = 100
-      # num_bins = int(numpy.floor(
-      #   numpy.max(subset_time_values) / (2 * t_turb)
-      # ))
     )
     stage1_initial_params = (
       -20, # log10(E_init)
@@ -90,7 +86,6 @@ def main():
     stage1_median_output_params[1], # log10(E_sat)
     stage1_median_output_params[2], # gamma
     0.5 * stage1_median_transition_time, # t_nl
-    0.75 * (numpy.max(subset_time_values) + stage1_median_transition_time) # t_sat
   )
   ## run stage 2 fitter
   print("Running stage 2.")
@@ -125,15 +120,8 @@ def main():
         stage2_initial_params[1], # log10(E_sat)
         stage2_initial_params[2], # gamma
         stage2_initial_params[3], # t_nl
-        stage2_initial_params[4], # t_sat
         1.5 # exponent
       ]),
-      # initial_params     = tuple([
-      #   stage2_initial_params[1], # log10(E_sat)
-      #   stage2_initial_params[3], # t_nl
-      #   stage2_initial_params[4], # t_sat
-      #   1.5 # exponent
-      # ]),
       prior_kde          = stage2_prior_kde,
       plot_posterior_kde = True,
       t_turb             = t_turb

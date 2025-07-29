@@ -98,8 +98,8 @@ class BaseMCMCRoutine:
 
   def estimate_posterior(
       self,
-      num_walkers   : int = 60,
-      num_steps     : int = 1e4,
+      num_walkers   : int = 30,
+      num_steps     : int = 6e3,
       burn_in_steps : int = 3e3,
     ):
     if not self._get_valid_params_mask(self.initial_params):

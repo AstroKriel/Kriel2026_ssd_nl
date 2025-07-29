@@ -36,7 +36,7 @@ def load_data(sim_directory: str | Path):
   sim_name = f"Mach{Mach_number}Re{Re_number}Pm{Pm_number}Nres{Nres_number}v{version_number}"
   time_values, magnetic_energy_values = read_vi_data.read_vi_data(directory=sim_directory, dataset_name="mag")
   _, kinetic_energy_values = read_vi_data.read_vi_data(directory=sim_directory, dataset_name="kin")
-  _, Mach_values = read_vi_data.read_vi_data(directory=sim_directory, dataset_name="Mach")
+  _, rms_Mach_values = read_vi_data.read_vi_data(directory=sim_directory, dataset_name="Mach")
   return {
     "sim_name" : sim_name,
     "sim_directory" : str(sim_directory),
@@ -50,7 +50,7 @@ def load_data(sim_directory: str | Path):
     },
     "measured_data" : {
       "time_values" : time_values[1:],
-      "rms_Mach_values" : Mach_values[1:],
+      "rms_Mach_values" : rms_Mach_values[1:],
       "magnetic_energy_values" : magnetic_energy_values[1:],
       "kinetic_energy_values" : kinetic_energy_values[1:]
     }
@@ -60,10 +60,10 @@ def load_data(sim_directory: str | Path):
 def plot_and_save_data(dataset: dict, output_directory: Path):
   io_manager.init_directory(output_directory)
   fig, axs = plot_manager.create_figure(num_rows=3, share_x=True)
-  axs[0].plot(dataset["raw_data"]["time_values"], dataset["raw_data"]["Mach_values"], color="blue")
-  axs[1].plot(dataset["raw_data"]["time_values"], dataset["raw_data"]["magnetic_energy_values"], color="red")
-  axs[2].plot(dataset["raw_data"]["time_values"], numpy.log10(dataset["raw_data"]["magnetic_energy_values"]), color="red")
-  axs[2].plot(dataset["raw_data"]["time_values"], numpy.log10(dataset["raw_data"]["kinetic_energy_values"]), color="blue")
+  axs[0].plot(dataset["measured_data"]["time_values"], dataset["measured_data"]["rms_Mach_values"], color="blue")
+  axs[1].plot(dataset["measured_data"]["time_values"], dataset["measured_data"]["magnetic_energy_values"], color="red")
+  axs[2].plot(dataset["measured_data"]["time_values"], numpy.log10(dataset["measured_data"]["magnetic_energy_values"]), color="red")
+  axs[2].plot(dataset["measured_data"]["time_values"], numpy.log10(dataset["measured_data"]["kinetic_energy_values"]), color="blue")
   axs[0].set_ylabel(r"$\mathcal{M}$")
   axs[1].set_ylabel(r"$\mathrm{energy}$")
   axs[2].set_ylabel(r"$\log_{10}(\mathrm{energy})$")

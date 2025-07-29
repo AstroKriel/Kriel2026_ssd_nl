@@ -39,9 +39,6 @@ class BaseMCMCRoutine:
 
   def _get_kde_params(self, param_vectors):
     return numpy.asarray(param_vectors)
-  
-  def _other_logpdfs(self, param_vectors):
-    return numpy.zeros(numpy.asarray(param_vectors).shape[0])
 
   def _get_output_params(self):
     return self.fitted_posterior_samples, self.fitted_param_labels
@@ -75,7 +72,7 @@ class BaseMCMCRoutine:
     self.likelihood_sigma    = likelihood_sigma
     self.initial_params      = initial_params
     self.num_params          = len(self.initial_params)
-    self._prior_logpdf       = prior_kde.logpdf if prior_kde is not None else None
+    self._prior_logpdf       = prior_kde.logpdf if (prior_kde is not None) else None
     self.data_label          = data_label
     self.fitted_param_labels = fitted_param_labels
     self.plot_posterior_kde  = plot_posterior_kde
@@ -98,18 +95,19 @@ class BaseMCMCRoutine:
 
   def estimate_posterior(
       self,
-      num_walkers   : int = 30,
-      num_steps     : int = 6e3,
-      burn_in_steps : int = 3e3,
+      num_walkers_per_param : int = 10,
+      num_steps             : int = 1e4,
+      burn_in_steps         : int = 3e3,
     ):
     if not self._get_valid_params_mask(self.initial_params):
       raise ValueError("Initial guess is invalid!")
     print("Estimating the posterior...")
-    self.num_walkers = num_walkers
+    num_params       = len(self.initial_params)
+    self.num_walkers = num_walkers_per_param * num_params
     self.num_steps   = num_steps
     perturbed_params = numpy.array(self.initial_params) + 1e-4 * numpy.random.randn(self.num_walkers, self.num_params)
     mcmc_sampler = emcee.EnsembleSampler(
-      nwalkers    = num_walkers,
+      nwalkers    = self.num_walkers,
       ndim        = self.num_params,
       log_prob_fn = self._log_posterior,
       vectorize   = True
@@ -154,8 +152,7 @@ class BaseMCMCRoutine:
       valid_params = numpy.atleast_2d(param_vectors[valid_params_mask])
       kde_vector   = self._get_kde_params(valid_params)
       kde_logpdfs  = self._prior_logpdf(kde_vector.T)
-      other_logpdfs = self._other_logpdfs(valid_params)
-      lp_values[valid_params_mask] = kde_logpdfs + other_logpdfs
+      lp_values[valid_params_mask] = kde_logpdfs
     else: lp_values[valid_params_mask] = 0.0 # uniform prior
     return lp_values
 

@@ -22,11 +22,10 @@ class Stage2MCMCRoutine_free(base_mcmc.BaseMCMCRoutine):
       ave_energy_values  : list | numpy.ndarray,
       std_energy_values  : list | numpy.ndarray,
       initial_params     : tuple[float, ...],
-      is_supersonic      : bool,
       prior_kde          : callable = None,
       plot_posterior_kde : bool = True,
     ):
-    guess_sat_time = self._define_constraints(time_values, ave_energy_values, is_supersonic)
+    guess_sat_time = self._define_constraints(time_values, ave_energy_values)
     super().__init__(
       routine_name        = "stage2_free",
       output_directory    = output_directory,
@@ -47,14 +46,14 @@ class Stage2MCMCRoutine_free(base_mcmc.BaseMCMCRoutine):
       fitted_param_labels = [
         r"$\log_{10}(E_{\mathrm{init}})$",
         r"$\log_{10}(E_{\mathrm{sat}})$",
-        r"$\exp_gamma$",
+        r"$\gamma_\mathrm{exp}$",
         r"$t_{\mathrm{nl}}$",
         r"$t_{\mathrm{sat}}$",
         r"$p$"
       ]
     )
 
-  def _define_constraints(self, time_values, ave_energy_values, is_supersonic):
+  def _define_constraints(self, time_values, ave_energy_values):
     self.max_sim_time = numpy.max(time_values)
     ## define max time to transition into saturated phase
     dlny_dt = gaussian_filter1d(numpy.gradient(numpy.log10(ave_energy_values), time_values), sigma=2)

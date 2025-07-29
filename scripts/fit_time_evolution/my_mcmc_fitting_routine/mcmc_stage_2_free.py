@@ -27,12 +27,6 @@ class Stage2MCMCRoutine_free(base_mcmc.BaseMCMCRoutine):
       plot_posterior_kde : bool = True,
     ):
     guess_sat_time = self._define_constraints(time_values, ave_energy_values, is_supersonic)
-    print(
-      self.max_nl_time,
-      self.max_sat_time,
-      self.max_sim_time,
-      guess_sat_time
-    )
     super().__init__(
       routine_name        = "stage2_free",
       output_directory    = output_directory,

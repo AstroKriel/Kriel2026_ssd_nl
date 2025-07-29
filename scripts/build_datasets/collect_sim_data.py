@@ -7,7 +7,6 @@ import sys
 import numpy
 from pathlib import Path
 from jormi.ww_io import io_manager, json_files
-from jormi.ww_data import interpolate_data
 from jormi.ww_plots import plot_manager
 from ww_flash_sims.sim_io import read_vi_data
 
@@ -32,29 +31,43 @@ def extract_sim_params(sim_directory: str | Path):
 def load_data(sim_directory: str | Path):
   Mach_number, Re_number, Pm_number, Nres_number, version_number = extract_sim_params(sim_directory)
   sim_name = f"Mach{Mach_number}Re{Re_number}Pm{Pm_number}Nres{Nres_number}v{version_number}"
-  time_values, magnetic_energy_values = read_vi_data.read_vi_data(
-    directory    = sim_directory,
-    dataset_name = "mag"
-  )
-  _, Mach_values  = read_vi_data.read_vi_data(
-    directory    = sim_directory,
-    dataset_name = "Mach"
-  )
+  time_values, magnetic_energy_values = read_vi_data.read_vi_data(directory=sim_directory, dataset_name="mag")
+  _, kinetic_energy_values = read_vi_data.read_vi_data(directory=sim_directory, dataset_name="kin")
+  _, Mach_values = read_vi_data.read_vi_data(directory=sim_directory, dataset_name="Mach")
   return {
     "sim_name" : sim_name,
     "sim_directory" : str(sim_directory),
     "plasma_params" : {
+      "target_Mach" : Mach_number,
+      "target_Re" : Re_number,
+      "target_Pm" : Pm_number,
+      "resolution" : Nres_number,
+      "version" : version_number,
       "t_turb" : 0.5 / Mach_number, # ell_turb / u_turb
-      "Mach" : Mach_number,
-      "Re" : Re_number,
-      "Pm" : Pm_number,
     },
-    "raw_data" : {
-      "time" : time_values[1:],
-      "Mach_values" : Mach_values[1:],
-      "magnetic_energy" : magnetic_energy_values[1:],
+    "measured_data" : {
+      "time_values" : time_values[1:],
+      "rms_Mach_values" : Mach_values[1:],
+      "magnetic_energy_values" : magnetic_energy_values[1:],
+      "kinetic_energy_values" : kinetic_energy_values[1:]
     }
   }
+
+def plot_and_save_data(dataset: dict, output_directory: Path):
+  io_manager.init_directory(output_directory)
+  fig, axs = plot_manager.create_figure(num_rows=3, share_x=True)
+  axs[0].plot(dataset["raw_data"]["time_values"], dataset["raw_data"]["Mach_values"], color="blue")
+  axs[1].plot(dataset["raw_data"]["time_values"], dataset["raw_data"]["magnetic_energy_values"], color="red")
+  axs[2].plot(dataset["raw_data"]["time_values"], numpy.log10(dataset["raw_data"]["magnetic_energy_values"]), color="red")
+  axs[2].plot(dataset["raw_data"]["time_values"], numpy.log10(dataset["raw_data"]["kinetic_energy_values"]), color="blue")
+  axs[0].set_ylabel(r"$\mathcal{M}$")
+  axs[1].set_ylabel(r"$\mathrm{energy}$")
+  axs[2].set_ylabel(r"$\log_{10}(\mathrm{energy})$")
+  axs[2].set_xlabel("time")
+  plot_path = io_manager.combine_file_path_parts([ output_directory, "dataset.png" ])
+  json_path = io_manager.combine_file_path_parts([ output_directory, "dataset.json" ])
+  plot_manager.save_figure(fig, plot_path)
+  json_files.save_dict_to_json_file(json_path, dataset, overwrite=True)
 
 
 ## ###############################################################
@@ -64,10 +77,9 @@ def load_data(sim_directory: str | Path):
 def main():
   base_output_directory = io_manager.combine_file_path_parts([ "/scratch/jh2/nk7952/kriel2025_nl_data" ])
   io_manager.init_directory(base_output_directory, verbose=False)
-  sim_directories = sorted(Path("/scratch/").glob("*/nk7952/R*/Mach*/Pm*/*"))
   sim_directories = [
     sim_directory
-    for sim_directory in sim_directories
+    for sim_directory in sorted(Path("/scratch/").glob("*/nk7952/R*/Mach*/Pm*/*"))
     if io_manager.does_file_exist(
       directory   = sim_directory,
       file_name   = "Turb.dat",
@@ -87,25 +99,9 @@ def main():
   ]
   print(" ")
   for sim_directory in sim_directories:
-    data_dict = load_data(sim_directory)
-    sim_name = data_dict["sim_name"]
-    sim_output_directory = io_manager.combine_file_path_parts([ base_output_directory, sim_name ])
-    io_manager.init_directory(sim_output_directory)
-    plot_params = dict(color="red", ls="-", lw=1, zorder=5)
-    fig, axs = plot_manager.create_figure(num_rows=3, share_x=True)
-    axs[0].plot(data_dict["raw_data"]["time"], data_dict["raw_data"]["Mach_values"], **plot_params)
-    axs[1].plot(data_dict["raw_data"]["time"], data_dict["raw_data"]["magnetic_energy"], **plot_params)
-    axs[2].plot(data_dict["raw_data"]["time"], numpy.log10(data_dict["raw_data"]["magnetic_energy"]), **plot_params)
-    axs[0].set_ylabel(r"$\mathcal{M}$")
-    axs[1].set_ylabel(r"$\mathrm{energy}$")
-    axs[2].set_ylabel(r"$\log_{10}(\mathrm{energy})$")
-    axs[2].set_xlabel(r"time")
-    fig_file_name = f"dataset.png"
-    fig_file_path = io_manager.combine_file_path_parts([ sim_output_directory, fig_file_name ])
-    plot_manager.save_figure(fig, fig_file_path)
-    json_file_name = f"dataset.json"
-    json_file_path = io_manager.combine_file_path_parts([ sim_output_directory, json_file_name ])
-    json_files.save_dict_to_json_file(json_file_path, data_dict, overwrite=True)
+    dataset = load_data(sim_directory)
+    sim_output_directory = io_manager.combine_file_path_parts([ base_output_directory, dataset["sim_name"] ])
+    plot_and_save_data(dataset, sim_output_directory)
     print(" ")
 
 

@@ -4,25 +4,24 @@ from jormi.ww_io import io_manager, json_files
 from jormi.ww_data import fit_data
 from jormi.ww_plots import plot_manager, plot_data, add_annotations, add_color
 
+MCMC_MODEL = "free"
 
 def extract_key_param_samples(fitted_posterior_samples):
-  # init_energy_samples    = 10**fitted_posterior_samples[:,0]
-  # sat_energy_samples     = 10**fitted_posterior_samples[:,1]
-  # gamma_samples          = fitted_posterior_samples[:,2]
-  # start_nl_time_samples  = fitted_posterior_samples[:,3]
-  # start_sat_time_samples = fitted_posterior_samples[:,4]
-  # start_nl_energy        = init_energy_samples * numpy.exp(gamma_samples * start_nl_time_samples)
-  # alpha_samples          = (sat_energy_samples - start_nl_energy) / (start_sat_time_samples - start_nl_time_samples)
-  if fitted_posterior_samples.shape[1] > 4: return None
-  sat_energy_samples     = 10**fitted_posterior_samples[:,0]
-  start_nl_time_samples  = fitted_posterior_samples[:,1]
-  start_sat_time_samples = fitted_posterior_samples[:,2]
-  beta_samples           = fitted_posterior_samples[:,3]
-  alpha_samples = sat_energy_samples / (start_sat_time_samples - start_nl_time_samples)**beta_samples
-  return alpha_samples
+  num_params = fitted_posterior_samples.shape[1]
+  init_energy_samples    = 10**fitted_posterior_samples[:,0]
+  sat_energy_samples     = 10**fitted_posterior_samples[:,1]
+  gamma_exp_samples      = fitted_posterior_samples[:,2]
+  nl_start_time_samples  = fitted_posterior_samples[:,3]
+  sat_start_time_samples = fitted_posterior_samples[:,4]
+  if   MCMC_MODEL == "linear":    exponent_samples = 1.0
+  elif MCMC_MODEL == "quadratic": exponent_samples = 2.0
+  elif MCMC_MODEL == "free":      exponent_samples = fitted_posterior_samples[:,5]
+  else: raise ValueError("model does not make sense.")
+  nl_start_energy        = init_energy_samples * numpy.exp(gamma_exp_samples * nl_start_time_samples)
+  gamma_nl_samples = (sat_energy_samples - nl_start_energy) / (sat_start_time_samples - nl_start_time_samples)**exponent_samples
+  return gamma_nl_samples
 
 def main():
-  mcmc_model = "free"
   base_directory = Path("/scratch/jh2/nk7952/kriel2025_nl_data/").resolve()
   directories = io_manager.ItemFilter(
     include_string = ["Mach", "Re", "Pm", "Nres"]
@@ -46,39 +45,39 @@ def main():
   for directory in directories:
     sim_data_path = io_manager.combine_file_path_parts([ directory, "dataset.json" ])
     sim_data_dict = json_files.read_json_file_into_dict(sim_data_path, verbose=False)
-    fit_data_path = io_manager.combine_file_path_parts([ directory, mcmc_model, f"stage2_{mcmc_model}_fitted_posterior_samples.npy" ])
+    fit_data_path = io_manager.combine_file_path_parts([ directory, MCMC_MODEL, f"stage2_{MCMC_MODEL}_fitted_posterior_samples.npy" ])
     if not io_manager.does_file_exist(fit_data_path): continue
     print(f"Loading: {directory}")
     fitted_posterior_samples = numpy.load(fit_data_path)
-    alpha_samples = extract_key_param_samples(fitted_posterior_samples)
-    if alpha_samples is None: continue
-    Mach_values = sim_data_dict["raw_data"]["Mach_values"]
+    gamma_nl_samples = extract_key_param_samples(fitted_posterior_samples)
+    if gamma_nl_samples is None: continue
+    Mach_values = sim_data_dict["measured_data"]["rms_Mach_values"]
     Mach_p16, Mach_p50, Mach_p84 = numpy.percentile(numpy.log10(Mach_values), [16, 50, 84])
     Mach_err_lower = Mach_p50 - Mach_p16
     Mach_err_upper = Mach_p84 - Mach_p50
-    Re_number = sim_data_dict["plasma_params"]["Re"]
-    alpha_p16, alpha_p50, alpha_p84 = numpy.percentile(numpy.log10(alpha_samples), [16, 50, 84])
-    alpha_err_lower = alpha_p50 - alpha_p16
-    alpha_err_upper = alpha_p84 - alpha_p50
+    Re_number = sim_data_dict["plasma_params"]["target_Re"]
+    gamma_nl_p16, gamma_nl_p50, gamma_nl_p84 = numpy.percentile(numpy.log10(gamma_nl_samples), [16, 50, 84])
+    gamma_nl_err_lower = gamma_nl_p50 - gamma_nl_p16
+    gamma_nl_err_upper = gamma_nl_p84 - gamma_nl_p50
     Re_color = cmap_Re(norm_Re(numpy.log10(Re_number)))
     if Re_number < 1000: continue
     ax.errorbar(
       Mach_p50,
-      alpha_p50,
+      gamma_nl_p50,
       xerr = [
         [Mach_err_lower],
         [Mach_err_upper],
       ],
       yerr = [
-        [alpha_err_lower],
-        [alpha_err_upper],
+        [gamma_nl_err_lower],
+        [gamma_nl_err_upper],
       ],
       fmt="o", color=Re_color, mec="black", markersize=5, capsize=3, zorder=3
     )
   ax.set_xlabel(r"$\log_{10}(\mathcal{M})$")
   ax.set_ylabel(r"$\log_{10}(\gamma_{\rm nl})$")
-  ax.set_xlim([-1.5, 1])
-  ax.set_ylim([-6, -0.5])
+  # ax.set_xlim([-1.5, 1])
+  # ax.set_ylim([-6, -0.5])
   ax.axvline(x=0, color="black", ls=":", lw=1.5)
   x_values = numpy.linspace(-2, 2, 100)
   plot_data.plot_wo_scaling_axis(
@@ -130,7 +129,7 @@ def main():
     label = r"$\log_{10}(\mathrm{Re})$",
     side  = "top",
   )
-  plot_manager.save_figure(fig, f"alpha_scaling_{mcmc_model}.png")
+  plot_manager.save_figure(fig, f"gamma_nl_scaling_{MCMC_MODEL}.png")
 
 
 if __name__ == "__main__":

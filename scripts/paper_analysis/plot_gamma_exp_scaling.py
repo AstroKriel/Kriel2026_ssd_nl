@@ -6,14 +6,8 @@ from jormi.ww_plots import plot_manager, plot_data, add_annotations, add_color
 
 
 def extract_key_param_samples(fitted_posterior_samples):
-  init_energy_samples    = 10**fitted_posterior_samples[:,0]
-  sat_energy_samples     = 10**fitted_posterior_samples[:,1]
-  gamma_samples          = fitted_posterior_samples[:,2]
-  start_nl_time_samples  = fitted_posterior_samples[:,3]
-  start_sat_time_samples = fitted_posterior_samples[:,4]
-  start_nl_energy        = init_energy_samples * numpy.exp(gamma_samples * start_nl_time_samples)
-  alpha_samples          = (sat_energy_samples - start_nl_energy) / (start_sat_time_samples - start_nl_time_samples)
-  return gamma_samples, alpha_samples, sat_energy_samples
+  gamma_samples = fitted_posterior_samples[:,2]
+  return gamma_samples
 
 def main():
   mcmc_model = "linear"
@@ -37,13 +31,13 @@ def main():
     if not io_manager.does_file_exist(fit_data_path): continue
     print(f"Loading: {directory}")
     fitted_posterior_samples = numpy.load(fit_data_path)
-    gamma_samples, _, _ = extract_key_param_samples(fitted_posterior_samples)
+    gamma_samples = extract_key_param_samples(fitted_posterior_samples)
     gamma_p16, gamma_p50, gamma_p84 = numpy.percentile(gamma_samples, [16, 50, 84])
     gamma_err_lower = numpy.log10(gamma_p50) - numpy.log10(gamma_p16)
     gamma_err_upper = numpy.log10(gamma_p84) - numpy.log10(gamma_p50)
-    Mach_values = sim_data_dict["raw_data"]["Mach_values"]
-    Mach_number = sim_data_dict["plasma_params"]["Mach"]
-    Re_number = sim_data_dict["plasma_params"]["Re"]
+    Mach_values = sim_data_dict["measured_data"]["rms_Mach_values"]
+    Mach_number = sim_data_dict["plasma_params"]["target_Mach"]
+    Re_number = sim_data_dict["plasma_params"]["target_Re"]
     Re_values = float(Re_number) / float(Mach_number) * numpy.array(Mach_values)
     Re_p16, Re_p50, Re_p84 = numpy.percentile(Re_values, [16, 50, 84])
     Re_err_lower = numpy.log10(Re_p50) - numpy.log10(Re_p16)
@@ -119,7 +113,7 @@ def main():
     label = r"$\log_{10}(\langle u^2 \rangle^{1/2} / c_s)$",
     side  = "top",
   )
-  plot_manager.save_figure(fig, f"gamma_scaling_{mcmc_model}.png")
+  plot_manager.save_figure(fig, f"gamma_exp_scaling_{mcmc_model}.png")
 
 
 if __name__ == "__main__":

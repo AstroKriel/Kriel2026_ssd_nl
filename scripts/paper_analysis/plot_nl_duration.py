@@ -6,12 +6,12 @@ from jormi.ww_plots import plot_manager, plot_data, add_annotations, add_color
 
 
 def extract_key_param_samples(fitted_posterior_samples):
-  start_nl_time_samples  = fitted_posterior_samples[:,1]
-  start_sat_time_samples = fitted_posterior_samples[:,2]
+  start_nl_time_samples  = fitted_posterior_samples[:,3]
+  start_sat_time_samples = fitted_posterior_samples[:,4]
   return start_sat_time_samples - start_nl_time_samples
 
 def main():
-  mcmc_model = "free"
+  mcmc_model = "quadratic"
   base_directory = Path("/scratch/jh2/nk7952/kriel2025_nl_data/").resolve()
   directories = io_manager.ItemFilter(
     include_string = ["Mach", "Re", "Pm", "Nres"]
@@ -35,12 +35,12 @@ def main():
     delta_t_p16, delta_t_p50, delta_t_p84 = numpy.percentile(numpy.log10(delta_t_samples), [16, 50, 84])
     delta_t_err_lower = delta_t_p50 - delta_t_p16
     delta_t_err_upper = delta_t_p84 - delta_t_p50
-    Mach_values = sim_data_dict["raw_data"]["Mach_values"]
+    Mach_number = sim_data_dict["plasma_params"]["target_Mach"]
+    Mach_values = sim_data_dict["measured_data"]["rms_Mach_values"]
     Mach_p16, Mach_p50, Mach_p84 = numpy.percentile(numpy.log10(Mach_values), [16, 50, 84])
     Mach_err_lower = Mach_p50 - Mach_p16
     Mach_err_upper = Mach_p84 - Mach_p50
-    Mach_number = sim_data_dict["plasma_params"]["Mach"]
-    Re_number = sim_data_dict["plasma_params"]["Re"]
+    Re_number = sim_data_dict["plasma_params"]["target_Re"]
     Re_values = float(Re_number) / float(Mach_number) * numpy.array(Mach_values)
     Re_p16, Re_p50, Re_p84 = numpy.percentile(Re_values, [16, 50, 84])
     Re_err_lower = Re_p50 - Re_p16
@@ -98,7 +98,7 @@ def main():
     side  = "top",
   )
   ax.axvline(x=0, color="black", ls=":", lw=1.5)
-  plot_manager.save_figure(fig, f"delta_t_scaling_{mcmc_model}.png")
+  plot_manager.save_figure(fig, f"nl_duration_scaling_{mcmc_model}.png")
 
 
 if __name__ == "__main__":

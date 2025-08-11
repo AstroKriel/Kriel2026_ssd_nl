@@ -1,6 +1,6 @@
 This project currently uses the following submodules as editable installs:
-	- flash: installed from local path: ../../sindri/python/ww_flash_sims
-		Uninstall with: `uv pip uninstall flash` # from the project root
+	- ww_flash_sims: installed from local path: ../../sindri/python/ww_flash_sims
+		Uninstall with: `uv pip uninstall ww_flash_sims` # from the project root
 	- jormi: installed from local path: ../../sindri/python/submodules/jormi
 		Uninstall with: `uv pip uninstall jormi` # from the project root
 

@@ -51,6 +51,7 @@ class Stage2MCMCRoutine(base_mcmc.BaseMCMCRoutine):
       fitted_param_labels.append(r"$p$")
       amended_initial_params.append(1.5) # nl_exponent
     else: assert 1.0 <= self.fixed_nl_exponent <= 2.0, "provided `fixed_nl_exponent` should be in [1, 2]"
+    print(amended_initial_params)
     super().__init__(
       routine_name        = routine_name,
       output_directory    = output_directory,
@@ -64,18 +65,33 @@ class Stage2MCMCRoutine(base_mcmc.BaseMCMCRoutine):
       fitted_param_labels = fitted_param_labels,
     )
 
-  def _define_constraints(self, time_values, ave_energy_values):
+  def _define_constraints(self, time_values, ave_energy_values, max_num_bins=100):
     self.max_sim_time = numpy.max(time_values)
+    if len(time_values) > max_num_bins:
+      time_bin_edges = numpy.linspace(time_values.min(), time_values.max(), max_num_bins+1)
+      time_bin_indices = numpy.digitize(time_values, time_bin_edges) - 1
+      binned_time_values = []
+      binned_ave_energy_values = []
+      for time_bin_index in range(max_num_bins):
+        time_bin_mask = (time_bin_indices == time_bin_index)
+        if not numpy.any(time_bin_mask): continue
+        binned_time_values.append(numpy.mean(time_values[time_bin_mask]))
+        binned_ave_energy_values.append(numpy.mean(ave_energy_values[time_bin_mask]))
+      used_time_values = numpy.asarray(binned_time_values)
+      used_ave_energy_values = numpy.asarray(binned_ave_energy_values)
+    else:
+      used_time_values = time_values
+      used_ave_energy_values = ave_energy_values
     ## define max time to transition into saturated phase
-    dlny_dt = gaussian_filter1d(numpy.gradient(numpy.log10(ave_energy_values), time_values), sigma=2)
+    dlny_dt = gaussian_filter1d(numpy.gradient(numpy.log10(used_ave_energy_values), used_time_values), sigma=2)
     max_sat_time_index = list_utils.find_first_crossing(values=dlny_dt, target=0)
-    self.max_sat_time  = time_values[max_sat_time_index]
+    self.max_sat_time  = used_time_values[max_sat_time_index]
     ## define max time to transition into nonlinear phase
     ## note, make sure this happens before the saturated phase
-    dy_dt = numpy.gradient(ave_energy_values, time_values)
+    dy_dt = numpy.gradient(used_ave_energy_values, used_time_values)
     target_dy_dt = 0.5 * numpy.max(dy_dt[:max_sat_time_index])
     max_nl_time_index = list_utils.find_first_crossing(values=dy_dt[:max_sat_time_index], target=target_dy_dt)
-    self.max_nl_time = time_values[max_nl_time_index]
+    self.max_nl_time = used_time_values[max_nl_time_index]
     ## construct a valid guess for the transition time into the saturated phase
     guess_sat_time = self.max_nl_time + 0.5 * (self.max_sat_time - self.max_nl_time)
     return guess_sat_time
@@ -119,7 +135,7 @@ class Stage2MCMCRoutine(base_mcmc.BaseMCMCRoutine):
     energy_2d[mask_sat_phase] = numpy.broadcast_to(sat_energy_2d, (num_local_walkers, num_data_points))[mask_sat_phase] # (N, T)
     return energy_2d
 
-  def _get_valid_params_mask(self, param_vectors):
+  def _get_valid_params_mask(self, param_vectors, verbose=False):
     param_vectors = numpy.atleast_2d(param_vectors)
     num_local_walkers = param_vectors.shape[0]
     if self.fixed_nl_exponent is None:
@@ -142,6 +158,25 @@ class Stage2MCMCRoutine(base_mcmc.BaseMCMCRoutine):
       valid_sat_start_time &
       valid_nl_exponent
     )
+    if verbose and not numpy.all(valid_params_mask):
+      checks = [
+        ("log10_init_energy", valid_log10_init_energy),
+        ("log10_sat_energy",  valid_log10_sat_energy),
+        ("exp_gamma",         valid_exp_gamma),
+        ("nl_start_time",     valid_nl_start_time),
+        ("sat_start_time",    valid_sat_start_time),
+        ("nl_exponent",       valid_nl_exponent),
+      ]
+      invalid_params = [
+        (param_name, param_valid_mask)
+        for param_name, param_valid_mask in checks
+        if not numpy.all(param_valid_mask)
+      ]
+      message_parts = [
+        f"{param_name} ({numpy.count_nonzero(~param_valid_mask)}/{num_local_walkers})"
+        for param_name, param_valid_mask in invalid_params
+      ]
+      print(f"[Stage2] invalid parameters: {', '.join(message_parts)}")
     if num_local_walkers == 1:
       return valid_params_mask[0]
     return valid_params_mask

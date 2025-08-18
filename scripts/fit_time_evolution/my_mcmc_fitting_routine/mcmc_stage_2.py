@@ -3,6 +3,7 @@
 ## ###############################################################
 
 import numpy
+from typing import Callable
 from scipy.ndimage import gaussian_filter1d
 from jormi.utils import list_utils
 from . import base_mcmc
@@ -22,7 +23,7 @@ class Stage2MCMCRoutine(base_mcmc.BaseMCMCRoutine):
       ave_energy_values  : list | numpy.ndarray,
       std_energy_values  : list | numpy.ndarray,
       initial_params     : tuple[float, float, float, float],
-      prior_kde          : callable | None = None,
+      prior_kde          : Callable | None = None,
       plot_posterior_kde : bool = True,
       fixed_nl_exponent  : float | None = None,
       routine_name       : str = "stage2",

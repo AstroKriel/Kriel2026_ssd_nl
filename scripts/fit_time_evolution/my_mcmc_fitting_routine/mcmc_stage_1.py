@@ -3,6 +3,7 @@
 ## ###############################################################
 
 import numpy
+from typing import Callable
 from . import base_mcmc
 from . import mcmc_utils
 

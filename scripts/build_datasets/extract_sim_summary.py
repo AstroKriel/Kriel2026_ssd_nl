@@ -4,7 +4,7 @@ from jormi.ww_io import io_manager, json_files
 from jormi.utils import list_utils
 
 
-def extract_data_from_sim(samples: numpy.ndarray, model: str):
+def extract_from_mcmc_data(samples: numpy.ndarray, model: str):
   init_energy    = 10 ** samples[:, 0]
   sat_energy     = 10 ** samples[:, 1]
   gamma_exp      = samples[:, 2]
@@ -29,13 +29,10 @@ def extract_data_from_sim(samples: numpy.ndarray, model: str):
 
 
 class EnsembleAverager:
-  fit_types = [
+  model_types = [
     "free",
     "linear",
-    "quadratic",
-    "free_better_binning",
-    "linear_better_binning",
-    "quadratic_better_binning"
+    "quadratic"
   ]
   quantity_keys = [
     "gamma_exp",
@@ -49,34 +46,43 @@ class EnsembleAverager:
     self.sim_directories = sim_directories
     self.fit_summary = {}
     self.sim_params = None
+    self.exracted_data = False
 
   def run(self):
-    for fit_type in self.fit_types:
+    ## for each fit-model
+    for model_type in self.model_types:
+      ## initialise quantities we want to accumulate over the different simulation instances
       combined_data = {
         quantity_key : []
         for quantity_key in self.quantity_keys
       }
-      model_type = fit_type.split("_better")[0]
+      ## loop over the different simulation instances
       for sim_directory in self.sim_directories:
-        data_path = io_manager.combine_file_path_parts([
-          sim_directory, fit_type, f"stage2_{model_type}_fitted_posterior_samples.npy"
-        ])
-        if not io_manager.does_file_exist(data_path): continue
         print("Looking at:", sim_directory)
-        sim_data = numpy.load(data_path)
-        extracted_data = extract_data_from_sim(sim_data, model_type)
+        ## get simulation data
+        sim_data_path = io_manager.combine_file_path_parts([ sim_directory, "dataset.json" ])
+        sim_data = json_files.read_json_file_into_dict(sim_data_path)
+        target_Mach = sim_data["plasma_params"]["target_Mach"]
+        target_Re = sim_data["plasma_params"]["target_Re"]
+        if target_Mach > 1:
+          _model_type = f"{model_type}_better_binning"
+        else: _model_type = model_type
+        mcmc_data_path = io_manager.combine_file_path_parts([
+          sim_directory, _model_type, f"stage2_{_model_type}_fitted_posterior_samples.npy"
+        ])
+        if not io_manager.does_file_exist(mcmc_data_path):
+          print("Simulation does not have mcmc data for:", sim_directory)
+          continue
+        mcmc_data = numpy.load(mcmc_data_path)
+        extracted_data = extract_from_mcmc_data(mcmc_data, _model_type)
         for quantity_key in combined_data:
           combined_data[quantity_key].append(extracted_data[quantity_key])
         ## only extract sim_params once (arbitrarily, from the linear fit)
-        if fit_type == "linear":
-          data_filepath = io_manager.combine_file_path_parts([ sim_directory, "dataset.json" ])
-          data_dict = json_files.read_json_file_into_dict(data_filepath)
-          target_Mach = data_dict["plasma_params"]["target_Mach"]
-          target_Re = data_dict["plasma_params"]["target_Re"]
+        if not self.exracted_data:
           nu = 0.5 * target_Mach / target_Re
-          t_turb = data_dict["plasma_params"]["t_turb"]
-          full_time_values = numpy.array(data_dict["measured_data"]["time_values"])
-          full_Mach_energy = numpy.array(data_dict["measured_data"]["rms_Mach_values"])
+          t_turb = sim_data["plasma_params"]["t_turb"]
+          full_time_values = numpy.array(sim_data["measured_data"]["time_values"])
+          full_Mach_energy = numpy.array(sim_data["measured_data"]["rms_Mach_values"])
           median_nl_start_time = numpy.median(extracted_data["nl_start_time"])
           start_index = list_utils.find_first_crossing(full_time_values / t_turb, 5)
           end_index = list_utils.find_first_crossing(full_time_values, median_nl_start_time)
@@ -94,13 +100,14 @@ class EnsembleAverager:
               "p84": float(numpy.percentile(kinematic_Re_values, 84))
             }
           }
-      self.fit_summary[fit_type] = {}
+          self.exracted_data = True
+      self.fit_summary[model_type] = {}
       for quantity_key, samples in combined_data.items():
         if not samples:
-          self.fit_summary[fit_type][quantity_key] = {"p16": None, "p50": None, "p84": None}
+          self.fit_summary[model_type][quantity_key] = {"p16": None, "p50": None, "p84": None}
           continue
         flat_samples = numpy.concatenate(samples)
-        self.fit_summary[fit_type][quantity_key] = {
+        self.fit_summary[model_type][quantity_key] = {
           "p16": float(numpy.percentile(flat_samples, 16)),
           "p50": float(numpy.percentile(flat_samples, 50)),
           "p84": float(numpy.percentile(flat_samples, 84))
@@ -128,6 +135,7 @@ def main():
       for sim_directory in all_directories
       if sim_suite in str(sim_directory)
     ]
+    ## average over the different simulation instances (at a particular resolution)
     sim_averager = EnsembleAverager(directories_in_suite)
     all_results[sim_suite] = sim_averager.run()
   json_files.save_dict_to_json_file("./summary_stats.json", all_results, overwrite=True)

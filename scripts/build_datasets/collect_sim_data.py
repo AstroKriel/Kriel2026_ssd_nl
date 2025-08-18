@@ -79,7 +79,7 @@ def plot_and_save_data(dataset: dict, output_directory: Path):
 ## ###############################################################
 
 def main():
-  base_output_directory = io_manager.combine_file_path_parts([ "/scratch/jh2/nk7952/kriel2025_nl_data" ])
+  base_output_directory = io_manager.combine_file_path_parts([ "/scratch/jh2/nk7952/ssd_sims" ])
   io_manager.init_directory(base_output_directory, verbose=False)
   ## find matching simulation directories under /scratch/
   sim_directories = [

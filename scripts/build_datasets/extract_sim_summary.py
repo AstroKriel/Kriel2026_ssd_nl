@@ -3,7 +3,6 @@ from pathlib import Path
 from jormi.ww_io import io_manager, json_files
 from jormi.utils import list_utils
 
-
 def extract_from_mcmc_data(samples: numpy.ndarray, model: str):
   init_energy    = 10 ** samples[:, 0]
   sat_energy     = 10 ** samples[:, 1]
@@ -26,7 +25,6 @@ def extract_from_mcmc_data(samples: numpy.ndarray, model: str):
     "sat_energy"     : sat_energy,
     "nl_exponent"    : nl_exponent,
   }
-
 
 class EnsembleAverager:
   model_types = [
@@ -71,7 +69,7 @@ class EnsembleAverager:
           sim_directory, _model_type, f"stage2_{_model_type}_fitted_posterior_samples.npy"
         ])
         if not io_manager.does_file_exist(mcmc_data_path):
-          print("Simulation does not have mcmc data for:", sim_directory)
+          print(f"Simulation does not have mcmc data fitted with `{_model_type}` for: {sim_directory}\n")
           continue
         mcmc_data = numpy.load(mcmc_data_path)
         extracted_data = extract_from_mcmc_data(mcmc_data, _model_type)
@@ -101,6 +99,7 @@ class EnsembleAverager:
             }
           }
           self.exracted_data = True
+        print(" ")
       self.fit_summary[model_type] = {}
       for quantity_key, samples in combined_data.items():
         if not samples:
@@ -118,7 +117,7 @@ class EnsembleAverager:
     }
 
 def main():
-  base_directory = Path("/scratch/jh2/nk7952/kriel2025_nl_data/").resolve()
+  base_directory = Path("/scratch/jh2/nk7952/ssd_sims").resolve()
   all_directories = io_manager.ItemFilter(
     include_string = ["Mach", "Re", "Pm", "Nres"]
   ).filter(

@@ -69,7 +69,7 @@ class Stage1MCMCRoutine(base_mcmc.BaseMCMCRoutine):
     log10_energy[mask_sat_phase] = log10_energy_sat_values[mask_sat_phase]
     return log10_energy
 
-  def _get_valid_params_mask(self, param_vectors):
+  def _get_valid_params_mask(self, param_vectors, verbose=False):
     param_vectors = numpy.atleast_2d(param_vectors)
     num_local_walkers = param_vectors.shape[0]
     log10_init_energy, gamma, transition_time = param_vectors.T
@@ -77,6 +77,22 @@ class Stage1MCMCRoutine(base_mcmc.BaseMCMCRoutine):
     valid_gamma             = (0 < gamma) & (gamma < 10)
     valid_transition_time   = (0.1 * self.max_sim_time < transition_time) & (transition_time < 0.9 * self.max_sim_time)
     valid_params_mask       = valid_log10_init_energy & valid_gamma & valid_transition_time
+    if verbose and not numpy.all(valid_params_mask):
+      checks = [
+        ("log10_init_energy", valid_log10_init_energy),
+        ("gamma_exp",         valid_gamma),
+        ("t_approx",          valid_transition_time),
+      ]
+      invalid_params = [
+        (param_name, param_valid_mask)
+        for param_name, param_valid_mask in checks
+        if not numpy.all(param_valid_mask)
+      ]
+      message_parts = [
+        f"{param_name} ({numpy.count_nonzero(~param_valid_mask)}/{num_local_walkers})"
+        for param_name, param_valid_mask in invalid_params
+      ]
+      print(f"[Stage1] invalid parameters: {', '.join(message_parts)}")
     if num_local_walkers == 1:
       return valid_params_mask[0]
     return valid_params_mask

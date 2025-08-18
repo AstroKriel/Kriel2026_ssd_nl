@@ -99,8 +99,8 @@ class BaseMCMCRoutine:
       num_steps             : int = 1e4,
       burn_in_steps         : int = 3e3,
     ):
-    if not self._get_valid_params_mask(self.initial_params):
-      raise ValueError("Initial guess is invalid!")
+    if not numpy.all(self._get_valid_params_mask(self.initial_params, verbose=True)):
+      raise ValueError(f"Initial guess is invalid!")
     print("Estimating the posterior...")
     num_params       = len(self.initial_params)
     self.num_walkers = num_walkers_per_param * num_params

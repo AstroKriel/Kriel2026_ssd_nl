@@ -130,7 +130,7 @@ def main():
   stage2_initial_params = (
     stage1_median_output_params[0], # log10(E_init)
     stage1_median_output_params[1], # log10(E_sat)
-    stage1_median_output_params[2], # gamma
+    stage1_median_output_params[2], # gamma_exp
     0.5 * stage1_median_transition_time, # t_nl
   )
   ## run stage 2 fitter

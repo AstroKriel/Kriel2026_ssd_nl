@@ -61,13 +61,21 @@ def main():
   parser = argparse.ArgumentParser(description="Run MCMC fitting routine.")
   parser.add_argument("-data_directory", type=str, required=True)
   parser.add_argument("-model", type=str, required=True, choices=["linear", "quadratic", "free"])
+  parser.add_argument("-num_bins", type=int, default=None, help="Number of bins. Default: one bin per eddy-turnover time.")
   args = parser.parse_args()
   data_directory = Path(args.data_directory).resolve()
   model_name = args.model
+  num_bins = args.num_bins
+  if num_bins is None:
+    binning_notice = "one bin per eddy-turnover time"
+    binning_tag = "bin_per_t0"
+  else:
+    binning_notice = f"{num_bins} bins"
+    binning_tag = f"{num_bins}bins"
   print(f"Looking at: {data_directory}")
-  print(f"Fitting the {model_name}-model to the nonlinear (backreaction) phase")
+  print(f"Fitting the {model_name}-model to the nonlinear (backreaction) phase with {binning_notice}.")
   ## read in magnetic energy evolution
-  output_directory = io_manager.combine_file_path_parts([ data_directory, f"{model_name}_better_binning" ])
+  output_directory = io_manager.combine_file_path_parts([ data_directory, model_name, binning_tag ])
   io_manager.init_directory(output_directory)
   data_filepath = io_manager.combine_file_path_parts([ data_directory, "dataset.json" ])
   data_dict = json_files.read_json_file_into_dict(data_filepath)
@@ -89,7 +97,7 @@ def main():
     binned_data = compute_binned_data(
       x_values = subset_time_values,
       y_values = subset_magnetic_energy,
-      num_bins = int(numpy.max(subset_time_values) / t_turb)
+      num_bins = int(numpy.max(subset_time_values) / t_turb) if (num_bins is None) else num_bins
     )
     stage1_initial_params = (
       -20, # log10(E_init)

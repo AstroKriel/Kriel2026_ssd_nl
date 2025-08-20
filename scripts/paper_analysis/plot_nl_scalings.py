@@ -15,7 +15,7 @@ BINNING_TYPE = "bin_per_t0"
 
 x_min, x_max = -1.5, 1.0
 y0_min, y0_max = -6.5, 0.0
-y1_min, y1_max = 0.0, 2.5
+y1_min, y1_max = 0.0, 2.0
 
 def format_fit_label(
     intercept_best : float,
@@ -64,7 +64,7 @@ def main():
 
   custom_cmap = LinearSegmentedColormap.from_list(
     name   = "white-brown",
-    colors = ["#fdfdfd", "#6a94a0", "#010101"],
+    colors = ["#fdfdfd", "#ff8800", "#010101"],
     N      = 256
   )
   cmap_Re, norm_Re = add_color.create_cmap(
@@ -72,11 +72,11 @@ def main():
     vmin = 3.1,
     vmax = 3.7,
     # cmin = 0.1,
-    # cmax = 0.8,
+    cmax = 0.7,
   )
 
-  model_colour = cmap_Re(0.5) # "blueviolet"
-  guide_colour = cmap_Re(0.5) # "blueviolet"
+  model_colour = cmap_Re(0.75) # "blueviolet"
+  guide_colour = cmap_Re(0.75) # "blueviolet"
 
   coords_to_fit = []
   for sim_suite, sim_data in all_results.items():
@@ -100,6 +100,8 @@ def main():
     log10_Mach_p50 = numpy.log10(Mach_stats["p50"])
     log10_Mach_err_lower = log10_Mach_p50 - numpy.log10(Mach_stats["p16"])
     log10_Mach_err_upper = numpy.log10(Mach_stats["p84"]) - log10_Mach_p50
+
+    t_turb = 1 / Mach_stats["p50"] # ell_turb / u_turb
 
     Re_stats = sim_data["sim_params"]["Re"]
     Re_p50 = Re_stats["p50"]
@@ -138,7 +140,7 @@ def main():
     )
     axs[1].errorbar(
       log10_Mach_p50 + log10_Mach_jiggle,
-      log10_delta_t_p50 + log10_delta_t_jiggle,
+      (log10_delta_t_p50 + log10_delta_t_jiggle) - numpy.log10(t_turb),
       xerr = [
         [log10_Mach_err_lower],
         [log10_Mach_err_upper]
@@ -154,12 +156,13 @@ def main():
       numpy.float64(log10_Mach_p50 + log10_Mach_jiggle),
       numpy.float64(log10_gamma_nl_p50 + log10_gamma_nl_jiggle),
       numpy.float64(log10_delta_t_p50 + log10_delta_t_jiggle),
+      numpy.float64(log10_delta_t_err_lower),
     ))
 
   axs[0].set_xticklabels([])
   axs[1].set_xlabel(r"$\log_{10}(\mathcal{M})$")
-  axs[0].set_ylabel(r"$\log_{10}(\gamma_{\rm nl})$")
-  axs[1].set_ylabel(r"$\log_{10}\big((t_{\rm sat} - t_{\rm nl}) / t_{\rm sc}\big)$")
+  axs[0].set_ylabel(r"$\log_{10}(\alpha_{\rm nl})$")
+  axs[1].set_ylabel(r"$\log_{10}\big((t_{\rm sat} - t_{\rm nl}) / t_0\big)$")
   axs[0].set_xlim([ x_min, x_max ])
   axs[1].set_xlim([ x_min, x_max ])
   axs[0].set_ylim([ y0_min, y0_max ])
@@ -169,7 +172,7 @@ def main():
 
   x_values = numpy.linspace(-2, 2, 100)
   ax0_bounds = (x_min, x_max, y0_min, y0_max)
-  ax1_bounds = (x_min, x_max, y1_min, y1_max)
+  # ax1_bounds = (x_min, x_max, y1_min, y1_max)
   
   ## subsonic growth rate
   subsonic_fit_results = fit_data.fit_line_with_fixed_slope(
@@ -243,35 +246,25 @@ def main():
   duration_fit_results = fit_data.fit_line_with_fixed_slope(
     x_values = [coord[0] for coord in coords_to_fit],
     y_values = [coord[2] for coord in coords_to_fit],
+    y_sigmas = [coord[3] for coord in coords_to_fit],
     slope    = -1,
   )
   duration_a1_ave = duration_fit_results["intercept"]["best"]
   duration_a1_std = duration_fit_results["intercept"]["std"]
-  plot_data.plot_wo_scaling_axis(
-    ax       = axs[1],
-    x_values = x_values,
-    y_values = duration_a1_ave - x_values,
-    ls       = "-",
-    lw       = 1.5,
-  )
+  axs[1].axhline(y=duration_a1_ave, color="black", ls="-", lw=1.5, zorder=-1)
   duration_label = format_fit_label(
     intercept_best = duration_a1_ave,
     intercept_std  = duration_a1_std,
     decimals       = 1,
   )
-  duration_rotation = fit_data.get_line_angle(
-    slope = -1 + 0.05,
-    domain_bounds = ax1_bounds,
-    domain_aspect_ratio = 6/4,
-  )
   add_annotations.add_text(
     ax          = axs[1],
-    x_pos       = 0.315,
-    y_pos       = 0.275,
-    label       = duration_label + r"$\, \mathcal{M}^{-1} \sim 10 \, t_0 / t_\mathrm{sc}$",
+    x_pos       = 0.05,
+    y_pos       = 0.65,
+    label       = duration_label + r"$\, t_0 / t_\mathrm{sc}$",
+    fontsize    = 20,
     x_alignment = "left",
-    y_alignment = "bottom",
-    rotate_deg  = duration_rotation,
+    y_alignment = "center",
   )
 
   ## annotate reference models
@@ -309,14 +302,15 @@ def main():
       subsonic_label + r"$\, \mathcal{M}^3$",
       supersonic_label,
     ],
-    marker_size  = 8,
-    line_width   = 1.5,
-    fontsize     = 14,
-    text_color   = "k",
-    position     = "upper left",
-    anchor       = (0.0, 1.0),
-    num_cols     = 1,
-    text_padding = 0.5,
+    marker_size   = 8,
+    line_width    = 1.5,
+    fontsize      = 16,
+    text_color    = "k",
+    position      = "upper left",
+    anchor        = (-0.02, 0.99),
+    num_cols      = 1,
+    text_padding  = 0.5,
+    label_spacing = 0.625,
   )
   add_annotations.add_custom_legend(
     ax           = axs[0],
@@ -334,15 +328,15 @@ def main():
     ],
     marker_size  = 8,
     line_width   = 1.5,
-    fontsize     = 14,
+    fontsize     = 16,
     text_color   = "k",
-    position     = "upper left",
-    anchor       = (0.0, 0.775),
+    position     = "lower right",
+    anchor       = (1.015, 0.025),
     num_cols     = 1,
     text_padding = 0.5,
   )
   guide_x0 = 0.2
-  guide_y0 = -3.75
+  guide_y0 = -4.0
   guide_length = 0.35
   guide_x_y6, guide_y_y6 = generate_line(
     x_start             = guide_x0,
@@ -365,7 +359,7 @@ def main():
   add_annotations.add_text(
     ax          = axs[0],
     x_pos       = 0.805,
-    y_pos       = 0.65,
+    y_pos       = 0.61,
     label       = r"$\mathcal{M}^{6}$",
     x_alignment = "center",
     y_alignment = "center",
@@ -393,7 +387,7 @@ def main():
   add_annotations.add_text(
     ax          = axs[0],
     x_pos       = 0.89,
-    y_pos       = 0.54,
+    y_pos       = 0.5,
     label       = r"$\mathcal{M}^{3/2}$",
     x_alignment = "center",
     y_alignment = "center",
@@ -414,18 +408,19 @@ def main():
   cbar.set_ticks(cbar_ticks)
   cbar.set_ticklabels(f"{cbar_tick:.1f}" for cbar_tick in cbar_ticks)
   add_annotations.add_custom_legend(
-    ax              = axs[0],
-    artists         = ["o", "s", "D"],
-    labels          = [ r"$288^3$", r"$576^3$", r"$1152^3$" ],
-    colors          = ["k"] * 3,
-    marker_size     = 8,
-    line_width      = 1.5,
-    fontsize        = 16,
-    text_color      = "k",
-    position        = "lower right",
-    anchor          = (1.0, 0.0),
-    num_cols        = 1,
-    text_padding    = 0.0,
+    ax             = axs[1],
+    artists        = ["o", "s", "D"],
+    labels         = [ r"$288^3$", r"$576^3$", r"$1152^3$" ],
+    colors         = ["k"] * 3,
+    marker_size    = 8,
+    line_width     = 1.5,
+    fontsize       = 16,
+    text_color     = "k",
+    position       = "upper left",
+    anchor         = (-0.05, 1.0),
+    num_cols       = 3,
+    text_padding   = 0.0,
+    column_spacing = 0.0,
   )
   script_dir = Path(__file__).parent
   plot_path = script_dir / "nl_scalings.pdf"

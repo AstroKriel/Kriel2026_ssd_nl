@@ -7,6 +7,7 @@ import numpy
 from pathlib import Path
 from collections import defaultdict
 from matplotlib.colors import LinearSegmentedColormap
+from jormi.utils import list_utils
 from jormi.ww_io import io_manager, json_files
 from jormi.ww_data import interpolate_data
 from jormi.ww_plots import plot_manager, add_color, add_annotations
@@ -24,7 +25,7 @@ def main():
   fig, axs = plot_manager.create_figure(num_rows=2, share_x=True)
   ax_inset = add_annotations.add_inset_axis(
     ax           = axs[0],
-    bounds       = (0.46, 0.065, 0.475, 0.5),
+    bounds       = (0.45, 0.1, 0.475, 0.5),
     x_label_side = "top",
     y_label_side = "left",
   )
@@ -74,7 +75,6 @@ def main():
     if not io_manager.does_file_exist(data_filepath):
       print(f"Missing dataset.json for: {sim_path}")
       continue
-    if "Mach0.8" in str(sim_path): continue
     sim_instance = json_files.read_json_file_into_dict(data_filepath)
     sim_name     = sim_instance["sim_name"].split("v")[0]
     t_turb       = sim_instance["plasma_params"]["t_turb"]
@@ -116,55 +116,56 @@ def main():
     t_turb = sim_instances[0][0]
     target_Mach = sim_instances[0][1]
     color = cmap_Mach(norm_Mach(numpy.log10(target_Mach)))
+    index_start = list_utils.get_index_of_closest_value(values=numpy.log10(Emag_p50_vals), target=-10)
     axs[0].plot(
-      interp_time_values,
+      (interp_time_values - interp_time_values[index_start]) / t_turb,
       numpy.log10(Emag_p50_vals),
-      color=color, markeredgewidth=0.2, zorder=target_Mach
+      color=color, markeredgewidth=0.2, zorder=1/target_Mach
     )
     axs[0].fill_between(
-      interp_time_values,
+      (interp_time_values - interp_time_values[index_start]) / t_turb,
       numpy.log10(Emag_p16_vals),
       numpy.log10(Emag_p84_vals),
-      color=color, alpha=0.5, zorder=target_Mach
+      color=color, alpha=0.35, zorder=1/target_Mach
     )
     axs[1].plot(
-      interp_time_values,
+      (interp_time_values - interp_time_values[index_start]) / t_turb,
       Emag_p50_vals,
-      color=color, markeredgewidth=0.2, zorder=target_Mach
+      color=color, markeredgewidth=0.2, zorder=1/target_Mach
     )
     axs[1].fill_between(
-      interp_time_values,
+      (interp_time_values - interp_time_values[index_start]) / t_turb,
       Emag_p16_vals,
       Emag_p84_vals,
-      color=color, alpha=0.5, zorder=target_Mach
+      color=color, alpha=0.35, zorder=1/target_Mach
     )
     ax_inset.plot(
-      interp_time_values / t_turb,
+      interp_time_values - interp_time_values[index_start],
       Emag_p50_vals,
       color=color, zorder=1/target_Mach
     )
     ax_inset.fill_between(
-      interp_time_values / t_turb,
+      interp_time_values - interp_time_values[index_start],
       Emag_p16_vals,
       Emag_p84_vals,
-      color=color, alpha=0.5, zorder=1/target_Mach
+      color=color, alpha=0.35, zorder=1/target_Mach
     )
   
   axs[0].axhline(y=0, ls=":", color="black", zorder=100)
   axs[1].axhline(y=1, ls=":", color="black", zorder=100)
   axs[0].set_ylabel(r"$\log_{10}(\mathrm{E_\mathrm{mag}} / \mathrm{E_\mathrm{mag, sat}})$")
   axs[1].set_ylabel(r"$E_\mathrm{mag} / \mathrm{E_\mathrm{mag, sat}}$")
-  axs[1].set_xlabel(r"$t / t_\mathrm{sc}$")
-  axs[0].set_xlim([0, 400])
-  axs[1].set_xlim([0, 400])
+  axs[1].set_xlabel(r"$t / t_0$")
+  axs[0].set_xlim([0, 200])
+  axs[1].set_xlim([0, 200])
   axs[0].set_ylim([-10.5, 1])
   axs[1].set_ylim([-0.025, 1.5])
 
-  ax_inset.set_xlim([0, 200])
+  ax_inset.set_xlim([0, 400])
   ax_inset.set_ylim([0, 2])
   ax_inset.axhline(y=1, ls=":", color="black", zorder=100)
   ax_inset.set_ylabel(r"$E_\mathrm{mag} / \mathrm{E_\mathrm{mag, sat}}$")
-  ax_inset.set_xlabel(r"$t / t_0$", labelpad=8)
+  ax_inset.set_xlabel(r"$t / t_\mathrm{sc}$", labelpad=8)
 
   add_color.add_cbar_from_cmap(
     ax           = axs[0],

@@ -38,7 +38,7 @@ def main():
 
   custom_cmap = LinearSegmentedColormap.from_list(
     name   = "white-brown",
-    colors = ["#024f92", "#067bf1", "#ffffff", "#f65d25", "#A41409"],
+    colors = ["#024f92", "#067bf1", "#d4d4d4", "#f65d25", "#A41409"],
     N      = 256
   )
   cmap_Mach, norm_Mach = add_color.create_cmap(

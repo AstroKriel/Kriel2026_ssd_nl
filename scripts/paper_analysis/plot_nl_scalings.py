@@ -64,7 +64,7 @@ def main():
 
   custom_cmap = LinearSegmentedColormap.from_list(
     name   = "white-brown",
-    colors = ["#fdfdfd", "#ff8800", "#010101"],
+    colors = ["#fdfdfd", "#f49325", "#010101"],
     N      = 256
   )
   cmap_Re, norm_Re = add_color.create_cmap(
@@ -75,8 +75,8 @@ def main():
     cmax = 0.7,
   )
 
-  model_colour = cmap_Re(0.75) # "blueviolet"
-  guide_colour = cmap_Re(0.75) # "blueviolet"
+  model_colour = cmap_Re(0.7) # "blueviolet"
+  guide_colour = cmap_Re(0.7) # "blueviolet"
 
   coords_to_fit = []
   for sim_suite, sim_data in all_results.items():
@@ -172,7 +172,6 @@ def main():
 
   x_values = numpy.linspace(-2, 2, 100)
   ax0_bounds = (x_min, x_max, y0_min, y0_max)
-  # ax1_bounds = (x_min, x_max, y1_min, y1_max)
   
   ## subsonic growth rate
   subsonic_fit_results = fit_data.fit_line_with_fixed_slope(
@@ -182,6 +181,11 @@ def main():
   )
   subsonic_a1_ave = subsonic_fit_results["intercept"]["best"]
   subsonic_a1_std = subsonic_fit_results["intercept"]["std"]
+  subsonic_label = format_fit_label(
+    intercept_best = subsonic_a1_ave,
+    intercept_std  = subsonic_a1_std,
+    decimals       = 1,
+  )
   plot_data.plot_wo_scaling_axis(
     ax       = axs[0],
     x_values = x_values,
@@ -189,25 +193,6 @@ def main():
     ls       = "-",
     lw       = 1.5,
   )
-  subsonic_label = format_fit_label(
-    intercept_best = subsonic_a1_ave,
-    intercept_std  = subsonic_a1_std,
-    decimals       = 1,
-  )
-  # subsonic_rotation = fit_data.get_line_angle(
-  #   slope = 3,
-  #   domain_bounds = ax0_bounds,
-  #   domain_aspect_ratio = 6/4,
-  # )
-  # add_annotations.add_text(
-  #   ax          = axs[0],
-  #   x_pos       = 0.2,
-  #   y_pos       = 0.05,
-  #   label       = subsonic_label + r"$\, \mathcal{M}^3$",
-  #   x_alignment = "left",
-  #   y_alignment = "bottom",
-  #   rotate_deg  = subsonic_rotation,
-  # )
 
   ## supersonic growth rate
   supersonic_fit_results = fit_data.fit_1d_linear_model(
@@ -218,6 +203,7 @@ def main():
   supersonic_a0_std = supersonic_fit_results["slope"]["std"]
   supersonic_a1_ave = supersonic_fit_results["intercept"]["best"]
   supersonic_a1_std = supersonic_fit_results["intercept"]["std"]
+  supersonic_label = rf"$10^{{{supersonic_a1_ave:.1f} \pm {supersonic_a1_std:.1f}}}\,\mathcal{{M}}^{{{supersonic_a0_ave:.1f} \pm {supersonic_a0_std:.1f}}}$"
   plot_data.plot_wo_scaling_axis(
     ax       = axs[0],
     x_values = x_values,
@@ -226,21 +212,6 @@ def main():
     lw       = 1.5,
     zorder   = 3
   )
-  # supersonic_rotation = fit_data.get_line_angle(
-  #   slope = supersonic_a0_ave,
-  #   domain_bounds = ax0_bounds,
-  #   domain_aspect_ratio = 6/4,
-  # )
-  supersonic_label = rf"$10^{{{supersonic_a1_ave:.1f} \pm {supersonic_a1_std:.1f}}}\,\mathcal{{M}}^{{{supersonic_a0_ave:.1f} \pm {supersonic_a0_std:.1f}}}$"
-  # add_annotations.add_text(
-  #   ax          = axs[0],
-  #   x_pos       = 0.05,
-  #   y_pos       = 0.285,
-  #   label       = supersonic_label,
-  #   x_alignment = "left",
-  #   y_alignment = "bottom",
-  #   rotate_deg  = supersonic_rotation,
-  # )
 
   ## universal duration
   duration_fit_results = fit_data.fit_line_with_fixed_slope(
@@ -273,7 +244,7 @@ def main():
     x_values = x_values,
     y_values = numpy.log10(3/38) + 3 * x_values, # xu and lazarian
     color    = model_colour,
-    ls       = ":",
+    ls       = "--",
     lw       = 1.75,
     alpha    = 1.0,
     zorder   = 1
@@ -283,7 +254,7 @@ def main():
     x_values = x_values,
     y_values = numpy.log10(0.05) + 3 * x_values, # beresnyak
     color    = model_colour,
-    ls       = (10, (10, 3, 1, 3, 1, 3)),
+    ls       = "-",
     lw       = 1.75,
     alpha    = 1.0,
     zorder   = 1
@@ -315,8 +286,8 @@ def main():
   add_annotations.add_custom_legend(
     ax           = axs[0],
     artists      = [
-      ":",
-      (10, (10, 3, 1, 3, 1, 3)),
+      "--",
+      "-",
     ],
     colors       = [
       model_colour,
@@ -335,9 +306,9 @@ def main():
     num_cols     = 1,
     text_padding = 0.5,
   )
-  guide_x0 = 0.2
-  guide_y0 = -4.0
-  guide_length = 0.35
+  guide_x0 = -0.55
+  guide_y0 = -5.5
+  guide_length = 0.5
   guide_x_y6, guide_y_y6 = generate_line(
     x_start             = guide_x0,
     y_start             = guide_y0,
@@ -351,44 +322,16 @@ def main():
     x_values = guide_x_y6,
     y_values = guide_y_y6,
     color    = guide_colour,
-    ls       = "--",
+    ls       = ":",
     lw       = 1.75,
     alpha    = 1.0,
     zorder   = 1
   )
   add_annotations.add_text(
     ax          = axs[0],
-    x_pos       = 0.805,
-    y_pos       = 0.61,
+    x_pos       = 0.5,
+    y_pos       = 0.25,
     label       = r"$\mathcal{M}^{6}$",
-    x_alignment = "center",
-    y_alignment = "center",
-    font_color  = guide_colour,
-    fontsize    = 20,
-  )
-  guide_x_y32, guide_y_y32 = generate_line(
-    x_start             = guide_x0,
-    y_start             = guide_y0,
-    slope               = 3/2,
-    line_length         = guide_length,
-    domain_bounds       = ax0_bounds,
-    domain_aspect_ratio = 6/4,
-  )
-  plot_data.plot_wo_scaling_axis(
-    ax       = axs[0],
-    x_values = guide_x_y32,
-    y_values = guide_y_y32,
-    color    = guide_colour,
-    ls       = "-",
-    lw       = 1.75,
-    alpha    = 1.0,
-    zorder   = 1
-  )
-  add_annotations.add_text(
-    ax          = axs[0],
-    x_pos       = 0.89,
-    y_pos       = 0.5,
-    label       = r"$\mathcal{M}^{3/2}$",
     x_alignment = "center",
     y_alignment = "center",
     font_color  = guide_colour,

@@ -1,3 +1,6 @@
+## { SCRIPT
+
+
 import numpy
 import random
 from pathlib import Path
@@ -245,7 +248,7 @@ def main():
     x_values = x_values,
     y_values = numpy.log10(3/38 * 2) + 3 * x_values, # xu and lazarian
     color    = model_colour,
-    ls       = "--",
+    ls       = ":",
     lw       = 1.75,
     alpha    = 1.0,
     zorder   = 1
@@ -255,7 +258,7 @@ def main():
     x_values = x_values,
     y_values = numpy.log10(0.05 * 2) + 3 * x_values, # beresnyak
     color    = model_colour,
-    ls       = "-",
+    ls       = (10, (10, 3, 1, 3, 1, 3)),
     lw       = 1.75,
     alpha    = 1.0,
     zorder   = 1
@@ -291,16 +294,16 @@ def main():
   add_annotations.add_custom_legend(
     ax = axs[0],
     artists = [
-      "--",
-      "-",
+      ":",
+      (10, (10, 3, 1, 3, 1, 3)),
     ],
     colors = [
       model_colour,
       model_colour,
     ],
     labels = [
-      r"$(3/38) \, \mathcal{M}^3 / \ell_0$",
-      r"$0.05 \, \mathcal{M}^3 / \ell_0$",
+      r"$(3/38) \, u_0^3 / \ell_0$",
+      r"$0.05 \, u_0^3 / \ell_0$",
     ],
     marker_size  = 8,
     line_width   = 1.5,
@@ -311,7 +314,7 @@ def main():
     num_cols     = 1,
     text_padding = 0.5,
   )
-  guide_x0 = 0.25
+  guide_x0 = 0.3
   guide_y0 = -3.75
   guide_length = 0.5
   guide_x_y6, guide_y_y6 = generate_line(
@@ -327,16 +330,44 @@ def main():
     x_values = guide_x_y6,
     y_values = guide_y_y6,
     color    = guide_colour,
-    ls       = ":",
+    ls       = "-",
     lw       = 1.75,
     alpha    = 1.0,
     zorder   = 1
   )
   add_annotations.add_text(
     ax          = axs[0],
-    x_pos       = 0.815,
-    y_pos       = 0.535,
+    x_pos       = 0.715,
+    y_pos       = 0.575,
     label       = r"$\mathcal{M}^{6}$",
+    x_alignment = "center",
+    y_alignment = "center",
+    font_color  = guide_colour,
+    fontsize    = 20,
+  )
+  guide_x_y4, guide_y_y4 = generate_line(
+    x_start             = guide_x0,
+    y_start             = guide_y0,
+    slope               = 4,
+    line_length         = guide_length,
+    domain_bounds       = ax0_bounds,
+    domain_aspect_ratio = 6/4,
+  )
+  plot_data.plot_wo_scaling_axis(
+    ax       = axs[0],
+    x_values = guide_x_y4,
+    y_values = guide_y_y4,
+    color    = guide_colour,
+    ls       = "--",
+    lw       = 1.85,
+    alpha    = 1.0,
+    zorder   = 1
+  )
+  add_annotations.add_text(
+    ax          = axs[0],
+    x_pos       = 0.85,
+    y_pos       = 0.475,
+    label       = r"$\mathcal{M}^{4}$",
     x_alignment = "center",
     y_alignment = "center",
     font_color  = guide_colour,
@@ -379,4 +410,4 @@ if __name__ == "__main__":
   random.seed(5)
   main()
 
-## .
+## } SCRIPT

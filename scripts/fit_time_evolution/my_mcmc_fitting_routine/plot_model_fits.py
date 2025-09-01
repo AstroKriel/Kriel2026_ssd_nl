@@ -1,19 +1,26 @@
-## ###############################################################
-## DEPENDENCIES
-## ###############################################################
+## { MODULE
+
+
+##
+## === DEPENDENCIES ===
+##
 
 import numpy
 from jormi.ww_plots import plot_manager
 from jormi.ww_io import io_manager
 
 
-## ###############################################################
-## PLOTTING ROUTINE
-## ###############################################################
+##
+## === PLOTTING ROUTINE ===
+##
 
 class PlotModelFits:
 
-  def __init__(self, mcmc_routine, num_curves: int = 100):
+  def __init__(
+    self,
+    mcmc_routine,
+    num_curves : int = 100
+  ):
     self.num_curves               = num_curves
     self.routine_name             = mcmc_routine.routine_name
     self.output_directory         = mcmc_routine.output_directory
@@ -27,7 +34,9 @@ class PlotModelFits:
     self._annotate_fitted_params  = mcmc_routine._annotate_fitted_params
     self._annotate_output_params  = mcmc_routine._annotate_output_params
 
-  def plot(self):
+  def plot(
+    self
+  ):
     fig, axs = plot_manager.create_figure(num_rows=3, share_x=True)
     self._plot_data(axs)
     self._plot_model(axs)
@@ -44,7 +53,10 @@ class PlotModelFits:
     fig_file_path = io_manager.combine_file_path_parts([self.output_directory, fig_name])
     plot_manager.save_figure(fig, fig_file_path, verbose=True)
 
-  def _plot_data(self, axs):
+  def _plot_data(
+    self,
+    axs
+  ):
     dy_dx_values = numpy.gradient(self.y_ave_values, self.x_values)
     style = dict(color="blue", marker="o", ms=5, ls="-", lw=1.0, zorder=3)
     axs[0].errorbar(
@@ -56,7 +68,10 @@ class PlotModelFits:
     axs[1].plot(self.x_values, dy_dx_values, **style)
     axs[1].axhline(y=0.0, color="black", ls="--", lw=1.5, zorder=0)
 
-  def _plot_model(self, axs):
+  def _plot_model(
+    self,
+    axs
+  ):
     random_selector = numpy.random.default_rng(seed=42)
     num_samples     = self.fitted_posterior_samples.shape[0]
     random_indices  = random_selector.choice(
@@ -75,7 +90,10 @@ class PlotModelFits:
     axs[0].fill_between(self.x_values, p16, p84, color="red", alpha=0.25, zorder=2)
 
 
-  def _plot_residuals(self, axs):
+  def _plot_residuals(
+    self,
+    axs
+  ):
     median_params = numpy.median(self.fitted_posterior_samples, axis=0)
     modelled_y    = self.model_func(median_params).squeeze()
     y_residuals   = self.y_ave_values - modelled_y
@@ -84,4 +102,4 @@ class PlotModelFits:
 
 
 
-## END OF MODULE
+## } MODULE

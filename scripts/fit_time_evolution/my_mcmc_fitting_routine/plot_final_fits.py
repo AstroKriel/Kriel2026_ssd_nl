@@ -1,22 +1,26 @@
-## START OF MODULE
+## { MODULE
 
 
-## ###############################################################
-## DEPENDENCIES
-## ###############################################################
+##
+## === DEPENDENCIES ===
+##
 
 import numpy
 from jormi.ww_plots import plot_manager
 from jormi.ww_io import io_manager
 
 
-## ###############################################################
-## PLOTTING ROUTINE
-## ###############################################################
+##
+## === PLOTTING ROUTINE ===
+##
 
 class PlotFinalFits:
 
-  def __init__(self, mcmc_routine, num_curves: int = 100):
+  def __init__(
+    self,
+    mcmc_routine,
+    num_curves : int = 100
+  ):
     self.num_curves               = num_curves
     self.output_directory         = mcmc_routine.output_directory
     self.x_values                 = mcmc_routine.x_values
@@ -25,7 +29,9 @@ class PlotFinalFits:
     self.model_func               = mcmc_routine._model
     self.fitted_posterior_samples = mcmc_routine.fitted_posterior_samples
 
-  def plot(self):
+  def plot(
+    self
+  ):
     fig, axs = plot_manager.create_figure(num_rows=2, share_x=True)
     self._plot_data(axs)
     self._plot_model(axs)
@@ -33,13 +39,19 @@ class PlotFinalFits:
     fig_file_path = io_manager.combine_file_path_parts([self.output_directory, fig_name])
     plot_manager.save_figure(fig, fig_file_path, verbose=True)
 
-  def _plot_data(self, axs):
+  def _plot_data(
+    self,
+    axs
+  ):
     style = dict(color="blue", marker="o", ms=5, ls="-", lw=1.0, zorder=3)
     axs[0].plot(self.x_values, numpy.log10(self.y_values), **style)
     axs[1].plot(self.x_values, self.y_values, **style)
     axs[1].axhline(y=0, color="black", ls="--", lw=1.5, zorder=0)
 
-  def _plot_model(self, axs):
+  def _plot_model(
+    self,
+    axs
+  ):
     rng = numpy.random.default_rng(seed=42)
     random_indices = rng.choice(
       self.num_params,
@@ -54,10 +66,13 @@ class PlotFinalFits:
     axs[0].fill_between(self.x_values, numpy.log10(p16), numpy.log10(p84), color="red", alpha=0.25, zorder=3)
     axs[1].fill_between(self.x_values, p16, p84, color="red", alpha=0.25, zorder=3)
 
-  def _label_plot(self, axs):
+  def _label_plot(
+    self,
+    axs
+  ):
     axs[0].set_ylabel(r"$\log_{10}(E_{\mathrm{mag}})$")
     axs[1].set_ylabel(r"$E_{\mathrm{mag}}$")
     axs[1].set_xlabel(r"time")
 
 
-## END OF MODULE
+## } MODULE

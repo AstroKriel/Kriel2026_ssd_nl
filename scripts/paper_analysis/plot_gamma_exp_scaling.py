@@ -1,3 +1,6 @@
+## { SCRIPT
+
+
 import numpy
 import random
 from pathlib import Path
@@ -237,4 +240,4 @@ if __name__ == "__main__":
   random.seed(4)
   main()
 
-## .
+## } SCRIPT

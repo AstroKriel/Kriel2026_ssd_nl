@@ -1,18 +1,25 @@
-## ###############################################################
-## DEPENDENCIES
-## ###############################################################
+## { MODULE
+
+
+##
+## === DEPENDENCIES ===
+##
 
 import numpy
 from jormi.ww_io import io_manager
 from jormi.ww_plots import plot_manager, add_annotations
 
 
-## ###############################################################
-## PLOTTING ROUTINE
-## ###############################################################
+##
+## === PLOTTING ROUTINE ===
+##
+
 class PlotChainEvolution:
 
-  def __init__(self, mcmc_routine):
+  def __init__(
+    self,
+    mcmc_routine
+  ):
     self.num_params       = mcmc_routine.num_params
     self.num_walkers      = mcmc_routine.num_walkers
     self.raw_chain        = mcmc_routine.raw_chain
@@ -20,7 +27,9 @@ class PlotChainEvolution:
     self.routine_name     = mcmc_routine.routine_name
     self.output_directory = mcmc_routine.output_directory
 
-  def plot(self):
+  def plot(
+    self
+  ):
     fig, axs = plot_manager.create_figure(num_rows=self.num_params, num_cols=1, share_x=True)
     for param_index in range(self.num_params):
       for walker_index in range(self.num_walkers):
@@ -43,4 +52,4 @@ class PlotChainEvolution:
     plot_manager.save_figure(fig, file_path, verbose=True)
 
 
-## END OF MODULE
+## } MODULE

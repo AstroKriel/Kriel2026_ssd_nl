@@ -1,6 +1,9 @@
-## ###############################################################
-## DEPENDENCIES
-## ###############################################################
+## { MODULE
+
+
+##
+## === DEPENDENCIES
+##
 
 import numpy
 from typing import Callable
@@ -10,11 +13,14 @@ from . import base_mcmc
 from . import mcmc_utils
 
 
-## ###############################################################
-## UNIFIED STAGE 2 MCMC FITTER
-## ###############################################################
+##
+## === UNIFIED STAGE 2 MCMC FITTER ===
+##
 
-class Stage2MCMCRoutine(base_mcmc.BaseMCMCRoutine):
+class Stage2MCMCRoutine(
+  base_mcmc.BaseMCMCRoutine
+):
+
   def __init__(
       self,
       *,
@@ -64,7 +70,12 @@ class Stage2MCMCRoutine(base_mcmc.BaseMCMCRoutine):
       fitted_param_labels = fitted_param_labels,
     )
 
-  def _define_constraints(self, time_values, ave_energy_values, max_num_bins=100):
+  def _define_constraints(
+    self,
+    time_values,
+    ave_energy_values,
+    max_num_bins = 100
+  ):
     self.max_sim_time = numpy.max(time_values)
     if len(time_values) > max_num_bins:
       time_bin_edges = numpy.linspace(time_values.min(), time_values.max(), max_num_bins+1)
@@ -95,7 +106,10 @@ class Stage2MCMCRoutine(base_mcmc.BaseMCMCRoutine):
     guess_sat_time = self.max_nl_time + 0.5 * (self.max_sat_time - self.max_nl_time)
     return guess_sat_time
 
-  def _model(self, param_vectors):
+  def _model(
+    self,
+    param_vectors
+  ):
     param_vectors = numpy.atleast_2d(param_vectors) # (N, P)
     ## output dimensions
     num_local_walkers = param_vectors.shape[0] # N
@@ -134,7 +148,11 @@ class Stage2MCMCRoutine(base_mcmc.BaseMCMCRoutine):
     energy_2d[mask_sat_phase] = numpy.broadcast_to(sat_energy_2d, (num_local_walkers, num_data_points))[mask_sat_phase] # (N, T)
     return energy_2d
 
-  def _get_valid_params_mask(self, param_vectors, verbose=False):
+  def _get_valid_params_mask(
+    self,
+    param_vectors,
+    verbose = False
+  ):
     param_vectors = numpy.atleast_2d(param_vectors)
     num_local_walkers = param_vectors.shape[0]
     if self.fixed_nl_exponent is None:
@@ -180,12 +198,18 @@ class Stage2MCMCRoutine(base_mcmc.BaseMCMCRoutine):
       return valid_params_mask[0]
     return valid_params_mask
 
-  def _get_kde_params(self, param_vectors):
+  def _get_kde_params(
+    self,
+    param_vectors
+  ):
     param_vectors = numpy.atleast_2d(param_vectors)
     ## ignore the transition times implicity gives them a unifrom prior
     return numpy.asarray(param_vectors[:, :3])
 
-  def _annotate_fitted_params(self, axs):
+  def _annotate_fitted_params(
+    self,
+    axs
+  ):
     sat_energy_samples      = 10**self.fitted_posterior_samples[:,1]
     nl_start_time_samples   = self.fitted_posterior_samples[:,3]
     sat_start_time_samples  = self.fitted_posterior_samples[:,4]
@@ -197,21 +221,48 @@ class Stage2MCMCRoutine(base_mcmc.BaseMCMCRoutine):
       axs[row_index].axvline(self.max_sat_time, color="red", ls="--")
 
 
-## ###############################################################
-## THIN WRAPPERS EXPOSING MODEL VARIANTS
-## ###############################################################
+##
+## === WRAPPERS EXPOSING MODEL VARIANTS
+##
 
-class Stage2MCMCRoutine_free(Stage2MCMCRoutine):
-  def __init__(self, **kwargs):
-    super().__init__(fixed_nl_exponent=None, routine_name="stage2_free", **kwargs)
+class Stage2MCMCRoutine_free(
+  Stage2MCMCRoutine
+):
+  def __init__(
+    self,
+    **kwargs
+  ):
+    super().__init__(
+      fixed_nl_exponent = None,
+      routine_name = "stage2_free",
+      **kwargs
+    )
 
-class Stage2MCMCRoutine_linear(Stage2MCMCRoutine):
-  def __init__(self, **kwargs):
-    super().__init__(fixed_nl_exponent=1.0, routine_name="stage2_linear", **kwargs)
+class Stage2MCMCRoutine_linear(
+  Stage2MCMCRoutine
+):
+  def __init__(
+    self,
+    **kwargs
+  ):
+    super().__init__(
+      fixed_nl_exponent = 1.0,
+      routine_name = "stage2_linear",
+      **kwargs
+    )
 
-class Stage2MCMCRoutine_quadratic(Stage2MCMCRoutine):
-  def __init__(self, **kwargs):
-    super().__init__(fixed_nl_exponent=2.0, routine_name="stage2_quadratic", **kwargs)
+class Stage2MCMCRoutine_quadratic(
+  Stage2MCMCRoutine
+):
+  def __init__(
+    self,
+    **kwargs
+  ):
+    super().__init__(
+      fixed_nl_exponent = 2.0,
+      routine_name = "stage2_quadratic",
+      **kwargs
+    )
 
 
-## END OF MODULE
+## } MODULE

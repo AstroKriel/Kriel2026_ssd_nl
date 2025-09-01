@@ -1,6 +1,9 @@
-## ###############################################################
-## DEPENDANCIES
-## ###############################################################
+## { SCRIPT
+
+
+##
+## === DEPENDENCIES ===
+##
 
 import sys
 import numpy
@@ -13,9 +16,9 @@ from jormi.ww_data import interpolate_data
 from jormi.ww_plots import plot_manager, add_color, add_annotations
 
 
-## ###############################################################
-## MAIN PROGRAM
-## ###############################################################
+##
+## === MAIN PROGRAM ===
+##
 
 def main():
   num_points = 10**3
@@ -181,13 +184,13 @@ def main():
   plot_manager.save_figure(fig, plot_path)
 
 
-## ###############################################################
-## SCRIPT ENTRY POINT
-## ###############################################################
+##
+## === ENTRY POINT ===
+##
 
 if __name__ == "__main__":
   main()
   sys.exit(0)
 
 
-## .
+## } SCRIPT

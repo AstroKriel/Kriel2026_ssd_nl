@@ -1,9 +1,9 @@
-## START OF MODULE
+## { MODULE
 
 
-## ###############################################################
-## DEPENDENCIES
-## ###############################################################
+##
+## === DEPENDENCIES ===
+##
 
 import numpy
 import emcee
@@ -17,9 +17,9 @@ from . import plot_model_posteriors
 from . import plot_model_fits
 
 
-## ###############################################################
-## BASE ROUTINE
-## ###############################################################
+##
+## === BASE ROUTINE ===
+##
 
 class BaseMCMCRoutine:
   """
@@ -29,42 +29,53 @@ class BaseMCMCRoutine:
 
   ## methods that need to be implemented by each subclass
 
-  def _model(self, param_vectors):
-    raise NotImplementedError()
+  def _model(
+    self,
+    param_vectors
+  ): raise NotImplementedError()
 
-  def _get_valid_params_mask(self, param_vectors):
-    raise NotImplementedError()
+  def _get_valid_params_mask(
+    self,
+    param_vectors
+  ): raise NotImplementedError()
 
   ## hooks that can be overwritten by each subclass
 
-  def _get_kde_params(self, param_vectors):
-    return numpy.asarray(param_vectors)
+  def _get_kde_params(
+    self,
+    param_vectors
+  ): return numpy.asarray(param_vectors)
 
-  def _get_output_params(self):
-    return self.fitted_posterior_samples, self.fitted_param_labels
+  def _get_output_params(
+    self
+  ): return self.fitted_posterior_samples, self.fitted_param_labels
 
-  def _annotate_fitted_params(self, axs):
-    pass
+  def _annotate_fitted_params(
+    self,
+    axs
+  ): pass
 
-  def _annotate_output_params(self, axs):
-    pass
+  def _annotate_output_params(
+    self,
+    axs
+  ): pass
 
   ## core functionality
 
   def __init__(
-      self,
-      *,
-      routine_name        : str,
-      output_directory    : str | Path,
-      x_values            : list | numpy.ndarray,
-      y_values            : list | numpy.ndarray,
-      likelihood_sigma    : list | numpy.ndarray,
-      initial_params      : tuple[float, ...],
-      prior_kde           : callable = None,
-      plot_posterior_kde  : bool = False,
-      data_label          : str | None = None,
-      fitted_param_labels : list[str] = [],
-    ):
+    self,
+    *,
+    routine_name        : str,
+    output_directory    : str | Path,
+    x_values            : list | numpy.ndarray,
+    y_values            : list | numpy.ndarray,
+    likelihood_sigma    : list | numpy.ndarray,
+    initial_params      : tuple[float, ...],
+    prior_kde           : callable = None,
+    plot_posterior_kde  : bool = False,
+    data_label          : str | None = None,
+    fitted_param_labels : list[str] = [],
+  ):
     self.routine_name        = routine_name
     self.output_directory    = output_directory
     self.x_values            = numpy.asarray(x_values)
@@ -85,7 +96,9 @@ class BaseMCMCRoutine:
     self.output_posterior_samples = None
     self.output_posterior_kde     = None
 
-  def _validate_inputs(self):
+  def _validate_inputs(
+    self
+  ):
     if not isinstance(self.x_values, (list, numpy.ndarray)): raise ValueError(f"`x_values` should either be a list or array of values.")
     if not isinstance(self.y_values, (list, numpy.ndarray)): raise ValueError(f"`y_values` should either be a list or array of values.")
     if not isinstance(self.likelihood_sigma, (list, numpy.ndarray)): raise ValueError(f"`likelihood_sigma` should either be a list or array of values.")
@@ -94,11 +107,11 @@ class BaseMCMCRoutine:
     if not isinstance(self.initial_params, tuple): raise ValueError(f"`initial_params` should be a tuple. Received {type(self.initial_params)}.")
 
   def estimate_posterior(
-      self,
-      num_walkers_per_param : int = 10,
-      num_steps             : int = 1e4,
-      burn_in_steps         : int = 3e3,
-    ):
+    self,
+    num_walkers_per_param : int = 10,
+    num_steps             : int = 1e4,
+    burn_in_steps         : int = 3e3,
+  ):
     if not numpy.all(self._get_valid_params_mask(self.initial_params, verbose=True)):
       raise ValueError(f"Initial guess is invalid!")
     print("Estimating the posterior...")
@@ -137,14 +150,20 @@ class BaseMCMCRoutine:
     self._make_plots()
     self._save_posterior_samples()
 
-  def _log_posterior(self, param_vectors):
+  def _log_posterior(
+    self,
+    param_vectors
+  ):
     lp_values = self._log_prior(param_vectors)
     valid_prior_mask = numpy.isfinite(lp_values)
     ll_values = numpy.full_like(lp_values, -numpy.inf)
     ll_values[valid_prior_mask] = self._log_likelihood(param_vectors[valid_prior_mask])
     return lp_values + ll_values
 
-  def _log_prior(self, param_vectors):
+  def _log_prior(
+    self,
+    param_vectors
+  ):
     valid_params_mask = self._get_valid_params_mask(param_vectors)
     num_local_walkers = param_vectors.shape[0]
     lp_values = numpy.full(num_local_walkers, -numpy.inf)
@@ -156,7 +175,10 @@ class BaseMCMCRoutine:
     else: lp_values[valid_params_mask] = 0.0 # uniform prior
     return lp_values
 
-  def _log_likelihood(self, param_vectors):
+  def _log_likelihood(
+    self,
+    param_vectors
+  ):
     param_vectors = numpy.atleast_2d(param_vectors)
     num_local_walkers = param_vectors.shape[0]
     valid_params_mask = self._get_valid_params_mask(param_vectors)
@@ -178,7 +200,10 @@ class BaseMCMCRoutine:
       raise
     return ll_values
 
-  def _check_chain_convergence(self, mcmc_sampler):
+  def _check_chain_convergence(
+    self,
+    mcmc_sampler
+  ):
     try:
       self.auto_correlation_time = mcmc_sampler.get_autocorr_time()
       is_converged = numpy.all(self.auto_correlation_time * 50 < self.num_steps)
@@ -190,12 +215,16 @@ class BaseMCMCRoutine:
     except emcee.autocorr.AutocorrError:
       print("WARNING: The autocorrelation time could not be estimated reliably. Chain may not be long enough.")
 
-  def _make_plots(self):
+  def _make_plots(
+    self
+  ):
     plot_chain_evolution.PlotChainEvolution(self).plot()
     plot_model_posteriors.PlotModelPosteriors(self).plot()
     plot_model_fits.PlotModelFits(self).plot()
 
-  def _save_posterior_samples(self):
+  def _save_posterior_samples(
+    self
+  ):
     fitted_posterior_path = io_manager.combine_file_path_parts([ self.output_directory, f"{self.routine_name}_fitted_posterior_samples.npy" ])
     output_posterior_path = io_manager.combine_file_path_parts([ self.output_directory, f"{self.routine_name}_output_posterior_samples.npy" ])
     log_likelihood_path   = io_manager.combine_file_path_parts([ self.output_directory, f"{self.routine_name}_fitted_log_likelihoods.npy" ])
@@ -205,4 +234,4 @@ class BaseMCMCRoutine:
       numpy.save(output_posterior_path, self.output_posterior_samples)
 
 
-## END OF MODULE
+## } MODULE

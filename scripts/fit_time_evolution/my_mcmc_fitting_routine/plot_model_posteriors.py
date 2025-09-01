@@ -1,6 +1,9 @@
-## ###############################################################
-## DEPENDENCIES
-## ###############################################################
+## { MODULE
+
+
+##
+## === DEPENDENCIES ===
+##
 
 import numpy
 from typing import NamedTuple
@@ -10,11 +13,13 @@ from jormi.ww_data import compute_stats
 from jormi.ww_plots import plot_manager, add_annotations
 
 
-## ###############################################################
-## HELPER DATA CLASS
-## ###############################################################
+##
+## === HELPER DATA CLASS ===
+##
 
-class KDEProjectionParams(NamedTuple):
+class KDEProjectionParams(
+  NamedTuple
+):
   posterior_samples    : numpy.ndarray
   posterior_kde        : callable
   param_ranges         : list[tuple]
@@ -24,13 +29,16 @@ class KDEProjectionParams(NamedTuple):
   num_marginal_samples : int = 50
 
 
-## ###############################################################
-## PLOTTING ROUTINE
-## ###############################################################
+##
+## === PLOTTING ROUTINE ===
+##
 
 class PlotModelPosteriors:
 
-  def __init__(self, mcmc_routine):
+  def __init__(
+    self,
+    mcmc_routine
+  ):
     self.output_directory   = mcmc_routine.output_directory
     self.routine_name       = mcmc_routine.routine_name
     self.num_params         = mcmc_routine.num_params
@@ -44,7 +52,9 @@ class PlotModelPosteriors:
     self.output_posterior_kde     = mcmc_routine.output_posterior_kde
     self.output_param_labels      = mcmc_routine.output_param_labels
 
-  def plot(self):
+  def plot(
+    self
+  ):
     self._plot_posteriors(
       posterior_samples = self.fitted_posterior_samples,
       posterior_kde     = self.fitted_posterior_kde,
@@ -63,7 +73,13 @@ class PlotModelPosteriors:
         fig_name          = f"{self.routine_name}_output_posteriors.png",
       )
 
-  def _plot_posteriors(self, posterior_samples, posterior_kde, param_labels, fig_name):
+  def _plot_posteriors(
+    self,
+    posterior_samples,
+    posterior_kde,
+    param_labels,
+    fig_name
+  ):
     fig, axs = plot_manager.create_figure(
       num_cols   = self.num_params,
       num_rows   = self.num_params,
@@ -85,7 +101,13 @@ class PlotModelPosteriors:
     file_path = io_manager.combine_file_path_parts([ self.output_directory, fig_name ])
     plot_manager.save_figure(fig, file_path, verbose=True)
 
-  def _plot_pdf(self, ax, param_index, posterior_samples, param_labels):
+  def _plot_pdf(
+    self,
+    ax,
+    param_index,
+    posterior_samples,
+    param_labels
+  ):
     bin_centers, estimated_pdf = compute_stats.estimate_pdf(
       values   = posterior_samples[:, param_index],
       num_bins = 20
@@ -134,7 +156,13 @@ class PlotModelPosteriors:
     )
     return padded_range
 
-  def _plot_jpdf(self, ax, row_index, col_index, posterior_samples):
+  def _plot_jpdf(
+    self,
+    ax,
+    row_index,
+    col_index,
+    posterior_samples
+  ):
     bc_rows, bc_cols, jpdf = compute_stats.estimate_jpdf(
       data_x   = posterior_samples[:, col_index],
       data_y   = posterior_samples[:, row_index],
@@ -151,7 +179,12 @@ class PlotModelPosteriors:
       ],
     )
 
-  def _annotate_plot(self, axs, param_ranges, param_labels):
+  def _annotate_plot(
+    self,
+    axs,
+    param_ranges,
+    param_labels
+  ):
     for row_index in range(self.num_params):
       for col_index in range(self.num_params):
         ax = axs[row_index, col_index]
@@ -169,7 +202,13 @@ class PlotModelPosteriors:
           ax.set_xlabel(param_labels[col_index])
         else: ax.set_xticklabels([])
 
-  def _plot_kde_projections(self, axs, posterior_samples, posterior_kde, param_ranges):
+  def _plot_kde_projections(
+    self,
+    axs,
+    posterior_samples,
+    posterior_kde,
+    param_ranges
+  ):
     for row_index in range(self.num_params):
       for col_index in range(self.num_params):
         if col_index >= row_index: continue
@@ -184,7 +223,10 @@ class PlotModelPosteriors:
         col_grid, row_grid, kde_density = self._compute_2d_kde_projection(params)
         axs[row_index, col_index].contour(col_grid, row_grid, kde_density, levels=5, colors="red", linewidths=1.5, alpha=0.75)
 
-  def _compute_2d_kde_projection(self, params: KDEProjectionParams):
+  def _compute_2d_kde_projection(
+    self,
+    params : KDEProjectionParams
+  ):
     marginalized_param_indices = [
       param_index
       for param_index in range(self.num_params)
@@ -222,4 +264,4 @@ class PlotModelPosteriors:
     return col_grid, row_grid, kde_density
 
 
-## END OF MODULE
+## } MODULE

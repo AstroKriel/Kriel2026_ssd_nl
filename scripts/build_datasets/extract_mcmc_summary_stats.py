@@ -1,9 +1,15 @@
+## { MODULE
+
+
 import numpy
 from pathlib import Path
 from jormi.ww_io import io_manager, json_files
 from jormi.utils import list_utils
 
-def extract_from_mcmc_data(samples: numpy.ndarray, model: str):
+def extract_from_mcmc_data(
+  samples : numpy.ndarray,
+  model   : str
+):
   init_energy    = 10 ** samples[:, 0]
   sat_energy     = 10 ** samples[:, 1]
   gamma_exp      = samples[:, 2]
@@ -44,13 +50,18 @@ class EnsembleAverager:
     "nl_exponent"
   ]
 
-  def __init__(self, sim_directories):
+  def __init__(
+    self,
+    sim_directories
+  ):
     self.sim_directories = sim_directories
     self.fit_summary = {}
     self.sim_params = None
     self.exracted_data = False
 
-  def run(self):
+  def run(
+    self
+  ):
     ## for each fit-model
     for model_type in self.model_types:
       print("Processing model-fit:", model_type)
@@ -159,4 +170,4 @@ def main():
 if __name__ == "__main__":
   main()
 
-## .
+## } MODULE

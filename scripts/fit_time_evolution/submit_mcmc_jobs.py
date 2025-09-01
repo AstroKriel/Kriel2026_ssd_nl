@@ -1,6 +1,9 @@
-## ###############################################################
-## DEPENDANCIES
-## ###############################################################
+## { SCRIPT
+
+
+##
+## === DEPENDENCIES ===
+##
 
 import sys
 from pathlib import Path
@@ -11,11 +14,16 @@ SCRIPT_DIR = Path(__file__).parent
 UV_PROJECT = SCRIPT_DIR.parent
 
 
-## ###############################################################
-## HELPER FUNCTIONS
-## ###############################################################
+##
+## === HELPER FUNCTIONS ===
+##
 
-def submit_job(data_directory, model_name, queued_job_tags, num_bins=None):
+def submit_job(
+  data_directory,
+  model_name,
+  queued_job_tags,
+  num_bins = None
+):
   data_path = io_manager.combine_file_path_parts([ data_directory, "dataset.json" ])
   data_dict = json_files.read_json_file_into_dict(data_path, verbose=False)
   sim_name = data_dict["sim_name"]
@@ -59,9 +67,9 @@ def submit_job(data_directory, model_name, queued_job_tags, num_bins=None):
   )
 
 
-## ###############################################################
-## MAIN PROGRAM
-## ###############################################################
+##
+## === MAIN PROGRAM ===
+##
 
 def main():
   ## collect data directories
@@ -100,13 +108,13 @@ def main():
         print(" ")
 
 
-## ###############################################################
-## SCRIPT ENTRY POINT
-## ###############################################################
+##
+## === ENTRY POINT ===
+##
 
 if __name__ == "__main__":
   main()
   sys.exit(0)
 
 
-## END OF SCRIPT
+## } SCRIPT

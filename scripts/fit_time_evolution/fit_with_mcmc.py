@@ -1,6 +1,9 @@
-## ###############################################################
-## DEPENDENCIES
-## ###############################################################
+## { SCRIPT
+
+
+##
+## === DEPENDENCIES ===
+##
 
 import numpy
 import argparse
@@ -13,15 +16,22 @@ from my_mcmc_fitting_routine.mcmc_stage_2 import Stage2MCMCRoutine_quadratic
 from my_mcmc_fitting_routine.plot_final_fits import PlotFinalFits
 
 
-## ###############################################################
-## HELPER FUNCTIONS
-## ###############################################################
+##
+## === HELPER FUNCTIONS ===
+##
 
-def compute_median_params_from_kde(kde, num_samples=10000):
+def compute_median_params_from_kde(
+  kde,
+  num_samples = 10000
+):
   samples = kde.resample(num_samples)
   return tuple(numpy.median(samples, axis=1))
 
-def compute_binned_data(x_values, y_values, num_bins):
+def compute_binned_data(
+  x_values,
+  y_values,
+  num_bins
+):
   x_bin_edges = numpy.linspace(0, numpy.max(x_values), num_bins+1)
   x_bin_centers = 0.5 * (x_bin_edges[1:] + x_bin_edges[:-1])
   x_bin_indices = numpy.digitize(x_values, x_bin_edges) - 1
@@ -52,9 +62,9 @@ def compute_binned_data(x_values, y_values, num_bins):
   }
 
 
-## ###############################################################
-## PROGRAM MAIN
-## ###############################################################
+##
+## === MAIN PROGRAM ===
+##
 
 def main():
   ## collect user arguments
@@ -169,12 +179,12 @@ def main():
   PlotFinalFits(stage2_mcmc).plot()
 
 
-## ###############################################################
-## SCRIPT ENTRY POINT
-## ###############################################################
+##
+## === ENTRY POINT ===
+##
 
 if __name__ == "__main__":
   main()
 
 
-## END OF SCRIPT
+## } SCRIPT

@@ -138,6 +138,7 @@ def main() -> None:
             plot_posterior_kde=False,
         )
         stage1_mcmc.estimate_posterior()
+        assert stage1_mcmc.fitted_posterior_samples is not None
         stage1_median_transition_time = numpy.median(stage1_mcmc.fitted_posterior_samples[:, 2])
         sat_fraction_of_subset_time = stage1_median_transition_time / max_subset_time
         sat_percent_of_subset_time = 100 * sat_fraction_of_subset_time
@@ -161,6 +162,7 @@ def main() -> None:
     )
     ## run stage 2 fitter
     print("Running stage 2.")
+    stage2_mcmc: Stage2MCMCRoutine_linear | Stage2MCMCRoutine_quadratic | Stage2MCMCRoutine_free
     if model_name == "linear":
         stage2_mcmc = Stage2MCMCRoutine_linear(
             output_directory=output_directory,

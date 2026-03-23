@@ -5,6 +5,7 @@
 ##
 
 ## stdlib
+from pathlib import Path
 from typing import Any
 
 ## third-party
@@ -24,7 +25,7 @@ class Stage1MCMCRoutine(mcmc_base.BaseMCMCRoutine):
     def __init__(
         self,
         *,
-        output_directory: str,
+        output_directory: str | Path,
         time_values: list | numpy.ndarray,
         ave_log10_energy_values: list | numpy.ndarray,
         std_log10_energy_values: list | numpy.ndarray,
@@ -120,9 +121,14 @@ class Stage1MCMCRoutine(mcmc_base.BaseMCMCRoutine):
         self,
         axs: Any,
     ) -> None:
+        assert self.fitted_posterior_samples is not None
         log10_gamma_samples = self.log10_e * self.fitted_posterior_samples[:, 1]
         transition_time_samples = self.fitted_posterior_samples[:, 2]
-        mcmc_utils.plot_param_percentiles(axs[1], log10_gamma_samples, orientation="horizontal")
+        mcmc_utils.plot_param_percentiles(
+            axs[1],
+            log10_gamma_samples,
+            orientation="horizontal",
+        )
         for row_index in range(len(axs)):
             mcmc_utils.plot_param_percentiles(
                 axs[row_index],
@@ -133,6 +139,7 @@ class Stage1MCMCRoutine(mcmc_base.BaseMCMCRoutine):
     def _get_output_params(
         self,
     ) -> tuple[numpy.ndarray, list[str]]:
+        assert self.fitted_posterior_samples is not None
         log10_init_energy_samples = self.fitted_posterior_samples[:, 0]
         gamma_samples = self.fitted_posterior_samples[:, 1]
         transition_time_samples = self.fitted_posterior_samples[:, 2]
@@ -155,6 +162,7 @@ class Stage1MCMCRoutine(mcmc_base.BaseMCMCRoutine):
         self,
         axs: Any,
     ) -> None:
+        assert self.output_posterior_samples is not None
         log10_sat_energy_samples = self.output_posterior_samples[:, 1]
         mcmc_utils.plot_param_percentiles(
             axs[0],

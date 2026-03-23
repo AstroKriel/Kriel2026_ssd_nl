@@ -38,7 +38,8 @@ def main() -> None:
     ## loop over and plot each ensemble-averaged simulation suite
     for suite_name, suite_stats in dataset.items():
         print("Looking at:", suite_name)
-        sim_path = (script_dir / ".." / ".." / "datasets" / "sims" / f"{suite_name}v1" / "sim_data.json").resolve()
+        sim_path = (script_dir / ".." / ".." / "datasets" / "sims" / f"{suite_name}v1" /
+                    "sim_data.json").resolve()
         sim_data = json_io.read_json_file_into_dict(sim_path)
         target_Mach = sim_data["details"]["target_Mach"]
         target_Re = sim_data["details"]["target_Re"]
@@ -97,7 +98,7 @@ def main() -> None:
     )
     cbar_ticks = [1.0, 1.25, 1.5, 1.75, 2.0]
     cbar.set_ticks(cbar_ticks)
-    cbar.set_ticklabels(f"{cbar_tick}" for cbar_tick in cbar_ticks)
+    cbar.set_ticklabels([f"{cbar_tick}" for cbar_tick in cbar_ticks])
     annotate_axis.add_custom_legend(
         ax=ax,
         artists=["o", "s", "D"],
@@ -107,8 +108,8 @@ def main() -> None:
         line_width=1.5,
         text_size=16,
         text_color="k",
-        position="upper left",
-        anchor=(0.0, 0.95),
+        anchor_at_corner="upper left",
+        anchor_point=(0.0, 0.95),
     )
     manage_plots.save_figure(fig, fig_path)
 

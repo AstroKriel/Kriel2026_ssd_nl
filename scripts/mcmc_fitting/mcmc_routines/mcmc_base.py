@@ -59,6 +59,7 @@ class BaseMCMCRoutine:
     def _get_output_params(
         self,
     ) -> tuple[numpy.ndarray, list[str]]:
+        assert self.fitted_posterior_samples is not None
         return self.fitted_posterior_samples, self.fitted_param_labels
 
     def _annotate_fitted_params(
@@ -84,7 +85,7 @@ class BaseMCMCRoutine:
         y_values: list | numpy.ndarray,
         likelihood_sigma: list | numpy.ndarray,
         initial_params: tuple[float, ...],
-        prior_kde: Callable | None = None,
+        prior_kde: gaussian_kde | None = None,
         plot_posterior_kde: bool = False,
         data_label: str | None = None,
         fitted_param_labels: list[str] = [],
@@ -96,18 +97,18 @@ class BaseMCMCRoutine:
         self.likelihood_sigma = likelihood_sigma
         self.initial_params = initial_params
         self.num_params = len(self.initial_params)
-        self._prior_logpdf = prior_kde.logpdf if (prior_kde is not None) else None
+        self._prior_logpdf: Callable | None = prior_kde.logpdf if (prior_kde is not None) else None
         self.data_label = data_label
         self.fitted_param_labels = fitted_param_labels
         self.plot_posterior_kde = plot_posterior_kde
         self._validate_inputs()
         ## define key outputs
-        self.raw_chain = None
-        self.auto_correlation_time = None
-        self.fitted_posterior_samples = None
-        self.fitted_posterior_kde = None
-        self.output_posterior_samples = None
-        self.output_posterior_kde = None
+        self.raw_chain: numpy.ndarray | None = None
+        self.auto_correlation_time: numpy.ndarray | None = None
+        self.fitted_posterior_samples: numpy.ndarray | None = None
+        self.fitted_posterior_kde: gaussian_kde | None = None
+        self.output_posterior_samples: numpy.ndarray | None = None
+        self.output_posterior_kde: gaussian_kde | None = None
 
     def _validate_inputs(
         self,
@@ -134,10 +135,10 @@ class BaseMCMCRoutine:
     def estimate_posterior(
         self,
         num_walkers_per_param: int = 10,
-        num_steps: int = 1e4,
-        burn_in_steps: int = 3e3,
+        num_steps: int = 10_000,
+        burn_in_steps: int = 3_000,
     ) -> None:
-        if not numpy.all(self._get_valid_params_mask(self.initial_params, verbose=True)):
+        if not numpy.all(self._get_valid_params_mask(numpy.asarray(self.initial_params))):
             raise ValueError(f"Initial guess is invalid!")
         print("Estimating the posterior...")
         num_params = len(self.initial_params)
@@ -145,7 +146,10 @@ class BaseMCMCRoutine:
         self.num_steps = num_steps
         perturbed_params = numpy.array(
             self.initial_params,
-        ) + 1e-3 * numpy.random.randn(self.num_walkers, self.num_params)
+        ) + 1e-3 * numpy.random.randn(
+            self.num_walkers,
+            self.num_params,
+        )
         mcmc_sampler = emcee.EnsembleSampler(
             nwalkers=self.num_walkers,
             ndim=self.num_params,
@@ -171,8 +175,10 @@ class BaseMCMCRoutine:
             # thin=10,
             flat=True,
         )
+        assert self.fitted_posterior_samples is not None
         self.fitted_log_likelihoods = self._log_likelihood(self.fitted_posterior_samples)
         self.output_posterior_samples, self.output_param_labels = self._get_output_params()
+        assert self.output_posterior_samples is not None
         if numpy.array_equal(self.output_posterior_samples, self.fitted_posterior_samples):
             print("Estimating the KDE of only the fitted posterior...")
             self.fitted_posterior_kde = gaussian_kde(
@@ -239,7 +245,7 @@ class BaseMCMCRoutine:
             )
             ## add a leading dimension to the measured data so it broadcasts across the vectorised param-rows
             y_residuals_2d = measured_y[None, :] - modelled_y
-            likelihood_sigma_2d = self.likelihood_sigma[None, :]
+            likelihood_sigma_2d = numpy.asarray(self.likelihood_sigma)[None, :]
             ll_values[valid_params_mask] = -0.5 * numpy.sum(
                 numpy.square(y_residuals_2d / likelihood_sigma_2d),
                 axis=1,
@@ -282,7 +288,7 @@ class BaseMCMCRoutine:
         # --- Autocorrelation time and ESS
         nwalk = getattr(mcmc_sampler, "nwalkers", None) or self.num_walkers
         nstep = int(self.num_steps)
-        ndim  = getattr(mcmc_sampler, "ndim", None) or getattr(self, "num_params", None)
+        ndim = getattr(mcmc_sampler, "ndim", None) or getattr(self, "num_params", None)
         try:
             # tol=0 gives the most conservative estimate; it will raise if chain is too short
             tau = numpy.asarray(mcmc_sampler.get_autocorr_time(tol=0), dtype=float)  # shape: (ndim,)
@@ -296,30 +302,40 @@ class BaseMCMCRoutine:
             ess = (N_raw / (2.0 * tau))
             ess_med = float(numpy.median(ess))
             ess_min = float(numpy.min(ess))
-            summary["ess"] = {"per_param": ess.tolist(), "median": ess_med, "min": ess_min, "N_raw": int(N_raw)}
+            summary["ess"] = {
+                "per_param": ess.tolist(),
+                "median": ess_med,
+                "min": ess_min,
+                "N_raw": int(N_raw)
+            }
             # Simple convergence gates based on tau
             # - Good: nstep >= 50 * tau_max
             # - Borderline: 5 * tau_max <= nstep < 50 * tau_max
             # - Poor: nstep < 5 * tau_max
             if nstep >= 50 * tau_max:
-                print(f"Chains appear converged: n_steps={nstep} ≥ 50×tau_max≈{tau_max:.1f}.")
+                print(f"Chains appear converged: n_steps={nstep} >= 50x tau_max~{tau_max:.1f}.")
             elif nstep >= 5 * tau_max:
-                print(f"WARNING: Borderline length: n_steps={nstep} is between 5× and 50× tau_max≈{tau_max:.1f}.")
+                print(
+                    f"WARNING: Borderline length: n_steps={nstep} is between 5x and 50x tau_max~{tau_max:.1f}."
+                )
             else:
-                print(f"WARNING: Chain likely too short: n_steps={nstep} < 5× tau_max≈{tau_max:.1f}.")
-            print(f"Autocorr time (median/max): {tau_med:.1f}/{tau_max:.1f} steps; "
-                f"approx. ESS median/min: {ess_med:.0f}/{ess_min:.0f} out of N={N_raw} raw samples.")
+                print(f"WARNING: Chain likely too short: n_steps={nstep} < 5x tau_max~{tau_max:.1f}.")
+            print(
+                f"Autocorr time (median/max): {tau_med:.1f}/{tau_max:.1f} steps; "
+                f"approx. ESS median/min: {ess_med:.0f}/{ess_min:.0f} out of N={N_raw} raw samples."
+            )
         except emcee.autocorr.AutocorrError:
             # Fall back to a softer message if tau is unreliable at current length
-            print("WARNING: Could not reliably estimate autocorrelation time (chain likely too short). "
-                "Proceeding with visual/heuristic checks.")
+            print(
+                "WARNING: Could not reliably estimate autocorrelation time (chain likely too short). "
+                "Proceeding with visual/heuristic checks.",
+            )
             self.auto_correlation_time = None
             summary["autocorr_time"] = None
             summary["ess"] = None
         # Optionally store a compact dict on self for later reporting
         self.convergence_summary = summary
         return summary
-
 
     def _make_plots(
         self,
@@ -340,6 +356,8 @@ class BaseMCMCRoutine:
         log_likelihood_path = manage_io.combine_file_path_parts(
             [self.output_directory, f"{self.routine_name}_fitted_log_likelihoods.npy"],
         )
+        assert self.fitted_posterior_samples is not None
+        assert self.output_posterior_samples is not None
         numpy.save(fitted_posterior_path, self.fitted_posterior_samples)
         numpy.save(log_likelihood_path, self.fitted_log_likelihoods)
         if not numpy.array_equal(self.output_posterior_samples, self.fitted_posterior_samples):

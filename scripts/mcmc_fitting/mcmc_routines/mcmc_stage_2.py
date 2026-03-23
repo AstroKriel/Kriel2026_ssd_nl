@@ -5,11 +5,12 @@
 ##
 
 ## stdlib
-from typing import Any, Callable
+from typing import Any
 
 ## third-party
 import numpy
 from scipy.ndimage import gaussian_filter1d
+from scipy.stats import gaussian_kde
 
 ## personal
 from jormi import ww_lists
@@ -34,7 +35,7 @@ class Stage2MCMCRoutine(
         ave_energy_values: list | numpy.ndarray,
         std_energy_values: list | numpy.ndarray,
         initial_params: tuple[float, float, float, float],
-        prior_kde: Callable | None = None,
+        prior_kde: gaussian_kde | None = None,
         plot_posterior_kde: bool = True,
         fixed_nl_exponent: float | None = None,
         routine_name: str = "stage2",
@@ -42,7 +43,10 @@ class Stage2MCMCRoutine(
         assert len(initial_params) == 4, (
             "Stage 2 MCMC routine expects 4 initial params: log10(E_init), log10(E_sat), gamma_exp, and t_nl"
         )
-        guess_sat_time = self._define_constraints(time_values, ave_energy_values)
+        guess_sat_time = self._define_constraints(
+            time_values=time_values,
+            ave_energy_values=ave_energy_values,
+        )
         fitted_param_labels = [
             r"$\log_{10}(E_{\mathrm{init}})$",
             r"$\log_{10}(E_{\mathrm{sat}})$",
@@ -84,7 +88,11 @@ class Stage2MCMCRoutine(
     ) -> float:
         self.max_sim_time = numpy.max(time_values)
         if len(time_values) > max_num_bins:
-            time_bin_edges = numpy.linspace(time_values.min(), time_values.max(), max_num_bins + 1)
+            time_bin_edges = numpy.linspace(
+                numpy.min(time_values),
+                numpy.max(time_values),
+                max_num_bins + 1,
+            )
             time_bin_indices = numpy.digitize(time_values, time_bin_edges) - 1
             binned_time_values = []
             binned_ave_energy_values = []
@@ -96,27 +104,36 @@ class Stage2MCMCRoutine(
             used_time_values = numpy.asarray(binned_time_values)
             used_ave_energy_values = numpy.asarray(binned_ave_energy_values)
         else:
-            used_time_values = time_values
-            used_ave_energy_values = ave_energy_values
+            used_time_values = numpy.asarray(time_values)
+            used_ave_energy_values = numpy.asarray(ave_energy_values)
         ## define max time to transition into saturated phase
         dlny_dt = gaussian_filter1d(
-            numpy.gradient(numpy.log10(used_ave_energy_values), used_time_values),
+            numpy.gradient(
+                numpy.log10(used_ave_energy_values),
+                used_time_values,
+            ),
             sigma=2,
         )
-        max_sat_time_index = ww_lists.get_index_of_first_crossing(values=dlny_dt, target=0)
+        max_sat_time_index = ww_lists.get_index_of_first_crossing(
+            values=[float(v) for v in dlny_dt],
+            target=0,
+        )
         self.max_sat_time = used_time_values[max_sat_time_index]
         ## define max time to transition into nonlinear phase
         ## note, make sure this happens before the saturated phase
-        dy_dt = numpy.gradient(used_ave_energy_values, used_time_values)
-        target_dy_dt = 0.5 * numpy.max(dy_dt[:max_sat_time_index])
+        dy_dt = numpy.gradient(
+            used_ave_energy_values,
+            used_time_values,
+        )
+        target_dy_dt = float(0.5 * numpy.max(dy_dt[:max_sat_time_index]))
         max_nl_time_index = ww_lists.get_index_of_first_crossing(
-            values=dy_dt[:max_sat_time_index],
+            values=[float(v) for v in dy_dt[:max_sat_time_index]],
             target=target_dy_dt,
         )
         self.max_nl_time = used_time_values[max_nl_time_index]
         ## construct a valid guess for the transition time into the saturated phase
         guess_sat_time = self.max_nl_time + 0.5 * (self.max_sat_time - self.max_nl_time)
-        return guess_sat_time
+        return float(guess_sat_time)
 
     def _model(
         self,
@@ -155,7 +172,8 @@ class Stage2MCMCRoutine(
         nl_gamma_2d = nl_gamma[:, None]  # (N, 1)
         ## assemble modelled SSD phases
         energy_2d = numpy.zeros((num_local_walkers, num_data_points))
-        energy_2d[mask_exp_phase] = (init_energy_2d * numpy.exp(exp_gamma_2d * x_values_2d))[mask_exp_phase]  # (N, T)
+        energy_2d[mask_exp_phase] = (init_energy_2d * numpy.exp(exp_gamma_2d * x_values_2d))[mask_exp_phase
+                                                                                             ]  # (N, T)
         energy_2d[mask_nl_phase] = (
             nl_start_energy_2d + nl_gamma_2d * (x_values_2d - nl_start_time_2d)**nl_exponent_2d
         )[mask_nl_phase]  # (N, T)
@@ -223,10 +241,15 @@ class Stage2MCMCRoutine(
         self,
         axs: Any,
     ) -> None:
+        assert self.fitted_posterior_samples is not None
         sat_energy_samples = 10**self.fitted_posterior_samples[:, 1]
         nl_start_time_samples = self.fitted_posterior_samples[:, 3]
         sat_start_time_samples = self.fitted_posterior_samples[:, 4]
-        mcmc_utils.plot_param_percentiles(axs[0], sat_energy_samples, orientation="horizontal")
+        mcmc_utils.plot_param_percentiles(
+            axs[0],
+            sat_energy_samples,
+            orientation="horizontal",
+        )
         for row_index in range(len(axs)):
             mcmc_utils.plot_param_percentiles(
                 axs[row_index],
@@ -238,8 +261,16 @@ class Stage2MCMCRoutine(
                 sat_start_time_samples,
                 orientation="vertical",
             )
-            axs[row_index].axvline(self.max_nl_time, color="red", ls="--")
-            axs[row_index].axvline(self.max_sat_time, color="red", ls="--")
+            axs[row_index].axvline(
+                self.max_nl_time,
+                color="red",
+                ls="--",
+            )
+            axs[row_index].axvline(
+                self.max_sat_time,
+                color="red",
+                ls="--",
+            )
 
 
 ##

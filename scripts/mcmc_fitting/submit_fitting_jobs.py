@@ -34,9 +34,7 @@ def submit_job(
     if job_tag in queued_job_tags:
         print(f"Job ({job_tag}) is already in the pbs queue.")
         return
-    job_directory = manage_io.combine_file_path_parts(
-        [SCRIPT_DIR.parent.parent / "mcmc_jobs", sim_name],
-    )
+    job_directory = manage_io.combine_file_path_parts([SCRIPT_DIR.parent.parent / "mcmc_jobs", sim_name], )
     manage_io.init_directory(job_directory)
     command_path = (SCRIPT_DIR / "fit_with_mcmc.py").resolve()
     manage_io.does_file_exist(
@@ -87,7 +85,7 @@ def main() -> None:
     [print(data_directory) for data_directory in data_directories]
     print(" ")
     ## collect queued jobs
-    queued_jobs = pbs_manager.get_list_of_queued_jobs()
+    queued_jobs = pbs_manager.get_list_of_queued_jobs() or []
     queued_job_tags = [job_tag for _, job_tag in queued_jobs]
     ## delete mcmc jobs from queue
     # [

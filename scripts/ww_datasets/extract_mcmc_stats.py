@@ -65,13 +65,13 @@ class EnsembleAverager:
         sim_directories: list,
     ) -> None:
         self.sim_directories = sim_directories
-        self.fit_summary = {}
-        self.sim_params = None
+        self.fit_summary: dict[str, dict] = {}
+        self.sim_params: dict[str, dict[str, float]] | None = None
         self.exracted_data = False
 
     def run(
         self,
-    ) -> dict[str, dict]:
+    ) -> dict[str, dict | None]:
         ## for each fit-model
         for model_type in self.model_types:
             print("Processing model-fit:", model_type)
@@ -120,10 +120,12 @@ class EnsembleAverager:
                         t_turb = sim_data["details"]["t_0"]
                         full_time_values = numpy.array(sim_data["time_series"]["time"])
                         full_Mach_energy = numpy.array(sim_data["time_series"]["Mach"])
-                        median_nl_start_time = numpy.median(extracted_data["nl_start_time"])
-                        start_index = ww_lists.get_index_of_first_crossing(values=full_time_values / t_turb, target=5)
+                        median_nl_start_time = float(numpy.median(extracted_data["nl_start_time"]))
+                        normalized_times: list[float] = [float(v) for v in full_time_values / t_turb]
+                        start_index = ww_lists.get_index_of_first_crossing(values=normalized_times, target=5)
+                        full_time_list: list[float] = [float(v) for v in full_time_values]
                         end_index = ww_lists.get_index_of_first_crossing(
-                            values=full_time_values,
+                            values=full_time_list,
                             target=median_nl_start_time,
                         )
                         kinematic_Mach_values = full_Mach_energy[start_index:end_index]

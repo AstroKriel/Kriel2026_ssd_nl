@@ -93,7 +93,7 @@ def main() -> None:
         biggest_t_min = numpy.max([numpy.min(sim_data[2]) for sim_data in sim_instances])
         smallest_t_max = numpy.min([numpy.max(sim_data[2]) for sim_data in sim_instances])
         interp_time_values = numpy.linspace(biggest_t_min, smallest_t_max, num_points)
-        Emag_matrix = []
+        Emag_matrix_list = []
         for sim_instance in sim_instances:
             interp_result = interpolate_series.interpolate_1d(
                 DataSeries(
@@ -104,8 +104,8 @@ def main() -> None:
                 spline_order=1,
             )
             interp_time_values, interp_Emag_values = interp_result.x_values, interp_result.y_values
-            Emag_matrix.append(interp_Emag_values)
-        Emag_matrix = numpy.array(Emag_matrix)
+            Emag_matrix_list.append(interp_Emag_values)
+        Emag_matrix = numpy.array(Emag_matrix_list)
         Emag_p16_vals = numpy.percentile(Emag_matrix, 16, axis=0)
         Emag_p50_vals = numpy.percentile(Emag_matrix, 50, axis=0)
         Emag_p84_vals = numpy.percentile(Emag_matrix, 84, axis=0)

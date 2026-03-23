@@ -19,11 +19,11 @@ y_min, y_max = -0.4, 0.45
 
 def format_fit_label(
     intercept_best: float,
-    intercept_std: float,
+    intercept_std: float | None,
     decimals: int = 2,
 ) -> str:
     coefficient = 10**intercept_best
-    coefficient_std = numpy.log(10) * coefficient * intercept_std
+    coefficient_std = numpy.log(10) * coefficient * (intercept_std if intercept_std is not None else 0.0)
     exponent = int(numpy.floor(numpy.log10(coefficient)))
     significand = coefficient / (10**exponent)
     significand_std = coefficient_std / (10**exponent)
@@ -149,7 +149,7 @@ def main() -> None:
         x_alignment="center",
         y_alignment="center",
         rotate_deg=subsonic_rotation,
-        text_color=palette.mpl_cmap(palette.mpl_norm(-1.0)),
+        text_color=palette.mpl_cmap(palette.mpl_norm(-1.0)),  # type: ignore[arg-type]
     )
     ## supersonic scaling
     supersonic_fit_results = fit_series.fit_line_with_fixed_slope(
@@ -186,7 +186,7 @@ def main() -> None:
         x_alignment="center",
         y_alignment="center",
         rotate_deg=supersonic_rotation,
-        text_color=palette.mpl_cmap(palette.mpl_norm(1.0)),
+        text_color=palette.mpl_cmap(palette.mpl_norm(1.0)),  # type: ignore[arg-type]
     )
     ## add other labels
     add_color.add_colorbar(

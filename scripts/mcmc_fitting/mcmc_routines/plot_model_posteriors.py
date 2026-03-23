@@ -114,10 +114,12 @@ class PlotModelPosteriors:
         posterior_samples: numpy.ndarray,
         param_labels: list[str],
     ) -> tuple[float, float]:
-        bin_centers, estimated_pdf = compute_array_stats.estimate_pdf(
+        pdf_result = compute_array_stats.estimate_pdf(
             values=posterior_samples[:, param_index],
             num_bins=20,
         )
+        bin_centers = pdf_result.bin_centers
+        estimated_pdf = pdf_result.densities
         ax.step(bin_centers, estimated_pdf, where="mid", lw=2.0, color="black")
         p16, p50, p84 = numpy.percentile(posterior_samples[:, param_index], [16, 50, 84])
         label = f"{param_labels[param_index]} $= {p50:.2f}_{{-{p50-p16:.2f}}}^{{+{p84-p50:.2f}}}$"
@@ -135,7 +137,7 @@ class PlotModelPosteriors:
             ax.set_xticklabels([])
         pdf_threshold = 0.05 * numpy.max(estimated_pdf)
         index_start = ww_lists.get_index_of_first_crossing(
-            values=estimated_pdf,
+            values=[float(v) for v in estimated_pdf],
             target=pdf_threshold,
             direction="rising",
         )
@@ -144,7 +146,7 @@ class PlotModelPosteriors:
             param_max = bin_centers[-1]
         else:
             index_stop = ww_lists.get_index_of_first_crossing(
-                values=estimated_pdf[index_start:],
+                values=[float(v) for v in estimated_pdf[index_start:]],
                 target=pdf_threshold,
                 direction="falling",
             )
@@ -169,11 +171,14 @@ class PlotModelPosteriors:
         col_index: int,
         posterior_samples: numpy.ndarray,
     ) -> None:
-        bc_rows, bc_cols, jpdf = compute_array_stats.estimate_jpdf(
+        jpdf_result = compute_array_stats.estimate_jpdf(
             data_x=posterior_samples[:, col_index],
             data_y=posterior_samples[:, row_index],
             num_bins=50,
         )
+        bc_rows = jpdf_result.row_centers
+        bc_cols = jpdf_result.col_centers
+        jpdf = jpdf_result.densities
         ax.imshow(
             jpdf,
             origin="lower",
@@ -267,7 +272,8 @@ class PlotModelPosteriors:
             size=params.num_marginal_samples,
             replace=False,
         )
-        marginalized_samples = params.posterior_samples[marginal_sample_indices][:, marginalized_param_indices]
+        marginalized_samples = params.posterior_samples[marginal_sample_indices][:,
+                                                                                 marginalized_param_indices]
         grid_points = numpy.zeros((
             num_grid_points * params.num_marginal_samples,
             self.num_params,

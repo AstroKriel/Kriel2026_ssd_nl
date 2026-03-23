@@ -29,12 +29,14 @@ def get_linear_model_weight(
     max_ll_linear: float | None,
     max_ll_quadratic: float | None,
 ) -> float:
+    if max_ll_linear is None or max_ll_quadratic is None:
+        return 0.5
     aic_linear = -2 * max_ll_linear
     aic_quadratic = -2 * max_ll_quadratic
     min_aic = numpy.min([aic_linear, aic_quadratic])
-    return numpy.exp(-0.5 * (aic_linear - min_aic)) / (
-        numpy.exp(-0.5 * (aic_linear - min_aic)) + numpy.exp(-0.5 * (aic_quadratic - min_aic))
-    )
+    return numpy.exp(
+        -0.5 * (aic_linear - min_aic)
+    ) / (numpy.exp(-0.5 * (aic_linear - min_aic)) + numpy.exp(-0.5 * (aic_quadratic - min_aic)))
 
 
 def main() -> None:
@@ -45,7 +47,7 @@ def main() -> None:
         include_files=False,
         include_folders=True,
     ).filter(
-        directory=dataset_dir / "sims"
+        directory=dataset_dir / "sims",
     )
     num_sims = 0
     agreement = 0

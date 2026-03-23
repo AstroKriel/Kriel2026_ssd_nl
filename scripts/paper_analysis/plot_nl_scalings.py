@@ -28,11 +28,11 @@ AX1_Y_MIN, AX1_Y_MAX = 0.0, 2.0
 
 def format_fit_label(
     intercept_best: float,
-    intercept_std: float,
+    intercept_std: float | None,
     decimals: int = 2,
 ) -> str:
     coefficient = 10**intercept_best
-    coefficient_std = numpy.log(10) * coefficient * intercept_std
+    coefficient_std = numpy.log(10) * coefficient * (intercept_std if intercept_std is not None else 0.0)
     exponent = int(numpy.floor(numpy.log10(coefficient)))
     significand = coefficient / (10**exponent)
     significand_std = coefficient_std / (10**exponent)
@@ -164,7 +164,7 @@ def main() -> None:
                 numpy.float64(log10_Mach["p50"]),
                 numpy.float64(log10_alpha_nl["p50"]),
                 numpy.float64(log10_nl_duration_normed_by_t0["p50"]),
-                numpy.float64(log10_nl_duration_normed_by_t0["std_hi"]), # assume summetric uncertainty
+                numpy.float64(log10_nl_duration_normed_by_t0["std_hi"]),  # assume summetric uncertainty
             ),
         )
     ## label
@@ -244,7 +244,7 @@ def main() -> None:
         x_pos=0.035,
         y_pos=0.375,
         label=duration_label + r"$\, t_0 / t_\mathrm{sc}$",
-        fontsize=20,
+        text_size=20,
         x_alignment="left",
         y_alignment="center",
     )
@@ -254,7 +254,7 @@ def main() -> None:
         ax=axs[0],
         x_values=x_values,
         y_values=numpy.log10(3 / 38 * 2) + 3 * x_values, # scaled by 1/ell_0 = 2.0
-        color=model_color,
+        color=model_color,  # type: ignore[arg-type]
         linestyle="-",
         linewidth=1.75,
         alpha=1.0,
@@ -265,7 +265,7 @@ def main() -> None:
         ax=axs[0],
         x_values=x_values,
         y_values=numpy.log10(0.05 * 2) + 3 * x_values, # scaled by 1/ell_0 = 2.0
-        color=model_color,
+        color=model_color,  # type: ignore[arg-type]
         linestyle="--",
         linewidth=1.75,
         alpha=1.0,
@@ -296,8 +296,8 @@ def main() -> None:
             "--",
         ],
         colors=[
-            model_color,
-            model_color,
+            model_color,  # type: ignore[list-item]
+            model_color,  # type: ignore[list-item]
         ],
         labels=[
             r"$(3/38) \, u_0^3 / \ell_0$",
@@ -356,7 +356,7 @@ def main() -> None:
     )
     cbar_ticks = [3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7]
     cbar.set_ticks(cbar_ticks)
-    cbar.set_ticklabels(f"{cbar_tick:.1f}" for cbar_tick in cbar_ticks)
+    cbar.set_ticklabels([f"{cbar_tick:.1f}" for cbar_tick in cbar_ticks])
     annotate_axis.add_custom_legend(
         ax=axs[1],
         artists=["o", "s", "D"],

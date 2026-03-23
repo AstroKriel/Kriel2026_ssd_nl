@@ -89,13 +89,13 @@ class PlotModelFits:
             size=min(self.num_curves, num_samples),
             replace=False,
         )
-        modelled_curves = []
+        modelled_curves_list = []
         for random_index in random_indices:
             params = self.fitted_posterior_samples[random_index]
             y_model = self.model_func(params).squeeze()
-            modelled_curves.append(y_model)
+            modelled_curves_list.append(y_model)
             axs[0].plot(self.x_values, y_model, color="gray", alpha=0.2, lw=0.5, zorder=1)
-        modelled_curves = numpy.array(modelled_curves)
+        modelled_curves = numpy.array(modelled_curves_list)
         p16, p84 = numpy.percentile(modelled_curves, [16, 84], axis=0)
         axs[0].fill_between(self.x_values, p16, p84, color="red", alpha=0.25, zorder=2)
 

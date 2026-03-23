@@ -3,10 +3,18 @@ name = "kriel-2025-ssd-nl"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
+authors = [{ name = "Neco Kriel", email = "necokriel@gmail.com" }]
 requires-python = ">=3.11"
 dependencies = [
-  "emcee>=3.1.6",
   "corner>=2.2.3",
+  "emcee>=3.1.6",
+  "jormi",
   "scikit-learn>=1.6.1",
   "scipy>=1.15.2",
 ]
+
+[tool.uv.sources]
+jormi = { git = "https://github.com/AstroKriel/PythonHelpers.git", rev = "031f175ddb23c3eea9abf5a0f67ff640a38559a4" }
+
+[tool.pyright]
+include = ["scripts"]

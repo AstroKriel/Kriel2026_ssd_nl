@@ -6,6 +6,7 @@
 
 ## stdlib
 from pathlib import Path
+from typing import ClassVar, Literal, TypeAlias, TypedDict, cast
 
 ## third-party
 import numpy
@@ -20,11 +21,24 @@ from jormi.ww_io import manage_io
 ## === HELPERS
 ##
 
+FloatArray: TypeAlias = NDArray[numpy.float64]
+ModelType: TypeAlias = Literal["free", "linear", "quadratic"]
+BinningType: TypeAlias = Literal["bin_per_t0", "100bins"]
+QuantityKey: TypeAlias = Literal["gamma_exp", "gamma_nl", "nl_duration", "sat_energy", "nl_exponent"]
+NullableStats: TypeAlias = dict[str, float | None]
+FitSummary: TypeAlias = dict[str, dict[str, dict[str, NullableStats]]]
+SimParams: TypeAlias = dict[str, dict[str, float]]
+
+
+class EnsembleResult(TypedDict):
+    fit_summaries: FitSummary
+    sim_params: SimParams | None
+
 
 def extract_from_mcmc_data(
-    samples: NDArray[numpy.float64],
+    samples: FloatArray,
     model: str,
-) -> dict[str, NDArray[numpy.float64]]:
+) -> dict[str, FloatArray]:
     init_energy = 10**samples[:, 0]
     sat_energy = 10**samples[:, 1]
     gamma_exp = samples[:, 2]
@@ -58,16 +72,16 @@ def extract_from_mcmc_data(
 
 
 class EnsembleAverager:
-    model_types = [
+    model_types: ClassVar[list[ModelType]] = [
         "free",
         "linear",
         "quadratic",
     ]
-    binning_types = [
+    binning_types: ClassVar[list[BinningType]] = [
         "bin_per_t0",
         "100bins",
     ]
-    quantity_keys = [
+    quantity_keys: ClassVar[list[QuantityKey]] = [
         "gamma_exp",
         "gamma_nl",
         "nl_duration",
@@ -79,20 +93,20 @@ class EnsembleAverager:
         self,
         sim_directories: list[Path],
     ) -> None:
-        self.sim_directories = sim_directories
-        self.fit_summary: dict[str, dict[str, dict[str, dict[str, float | None]]]] = {}
-        self.sim_params: dict[str, dict[str, float]] | None = None
-        self.exracted_data = False
+        self.sim_directories: list[Path] = sim_directories
+        self.fit_summary: FitSummary = {}
+        self.sim_params: SimParams | None = None
+        self.extracted_data: bool = False
 
     def run(
         self,
-    ) -> dict[str, dict[str, dict[str, dict[str, float | None]]] | None]:
+    ) -> EnsembleResult:
         ## for each fit-model
         for model_type in self.model_types:
             print("Processing model-fit:", model_type)
             print(" ")
             ## initialise quantities we want to accumulate over the different simulation instances
-            combined_by_binning: dict[str, dict[str, list[NDArray[numpy.float64]]]] = {}
+            combined_by_binning: dict[str, dict[str, list[FloatArray]]] = {}
             ## loop over the different simulation instances
             for sim_directory in self.sim_directories:
                 print("Looking at:", sim_directory)
@@ -101,9 +115,14 @@ class EnsembleAverager:
                 if not sim_data_path.is_file():
                     print(f"Missing sim_data.json for: {sim_directory}")
                     continue
-                sim_data = json_io.read_json_file_into_dict(sim_data_path)
-                target_Mach = sim_data["details"]["target_Mach"]
-                target_Re = sim_data["details"]["target_Re"]
+                sim_data = cast(
+                    dict[str, dict[str, float | list[float]]],
+                    json_io.read_json_file_into_dict(sim_data_path),
+                )
+                sim_details = cast(dict[str, float], sim_data["details"])
+                time_series = cast(dict[str, list[float]], sim_data["time_series"])
+                target_Mach = float(sim_details["target_Mach"])
+                target_Re = float(sim_details["target_Re"])
                 for binning_type in self.binning_types:
                     mcmc_data_path = sim_directory / model_type / binning_type / f"stage2_{model_type}_fitted_posterior_samples.npy"
                     if not mcmc_data_path.is_file():
@@ -111,7 +130,7 @@ class EnsembleAverager:
                             f"Simulation does not have mcmc data fitted with `{model_type}` and `{binning_type}`\n",
                         )
                         continue
-                    mcmc_data = numpy.load(mcmc_data_path)
+                    mcmc_data = cast(FloatArray, numpy.load(mcmc_data_path))
                     extracted_data = extract_from_mcmc_data(mcmc_data, model_type)
                     if binning_type not in combined_by_binning:
                         combined_by_binning[binning_type] = {
@@ -123,11 +142,17 @@ class EnsembleAverager:
                             extracted_data[quantity_key],
                         )
                     ## only extract sim_params once (arbitrarily, from the linear fit)
-                    if not self.exracted_data:
+                    if not self.extracted_data:
                         nu = 0.5 * target_Mach / target_Re
-                        t_turb = sim_data["details"]["t_0"]
-                        full_time_values = numpy.array(sim_data["time_series"]["time"])
-                        full_Mach_energy = numpy.array(sim_data["time_series"]["Mach"])
+                        t_turb = float(sim_details["t_0"])
+                        full_time_values = numpy.asarray(
+                            time_series["time"],
+                            dtype=numpy.float64,
+                        )
+                        full_Mach_energy = numpy.asarray(
+                            time_series["Mach"],
+                            dtype=numpy.float64,
+                        )
                         median_nl_start_time = float(
                             numpy.median(
                                 extracted_data["nl_start_time"],
@@ -187,7 +212,7 @@ class EnsembleAverager:
                                 ),
                             },
                         }
-                        self.exracted_data = True
+                        self.extracted_data = True
                     print(" ")
             self.fit_summary[model_type] = {}
             for binning_type, combined_data in combined_by_binning.items():
@@ -237,12 +262,18 @@ def main() -> None:
     datasets_dir = (script_dir / ".." / ".." / "datasets").resolve()
     output_summary_path = datasets_dir / "suite_fit_posteriors.json"
     base_directory = datasets_dir / "sims"
-    all_directories = manage_io.filter_directory(
-        base_directory,
-        req_include_words=["Mach", "Re", "Pm", "Nres"],
-    )
-    sim_suites = set([str(sim_directory).split("/")[-1].split("v")[0] for sim_directory in all_directories])
-    all_results = {}
+    all_directories = [
+        Path(sim_directory)
+        for sim_directory in manage_io.filter_directory(
+            base_directory,
+            req_include_words=["Mach", "Re", "Pm", "Nres"],
+        )
+    ]
+    sim_suites = {
+        sim_directory.name.split("v")[0]
+        for sim_directory in all_directories
+    }
+    all_results: dict[str, EnsembleResult] = {}
     for sim_suite in sorted(sim_suites):
         directories_in_suite = [
             sim_directory for sim_directory in all_directories if sim_suite in str(sim_directory)

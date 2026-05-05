@@ -22,9 +22,11 @@ Small-scale dynamos (SSDs) amplify magnetic fields in turbulent plasmas. Theory 
 
 ### Posterior Aggregation
 
-![Joint posterior distributions for nonlinear SSD model parameters.](figures/posteriors.png)
+Joint posterior distributions for important nonlinear SSD growth, shown for six independent realizations of the same simulation setup. Each individual-realization is a different color, with the aggregated posterior shown as a black point; together they highlight the hierarchical Bayesian treatment applied across simulation ensembles.
 
-Joint posterior distributions for key nonlinear SSD model parameters from six independent realizations of one simulation suite. Individual-realization posteriors are shown as colored contours, while the black point summarizes the aggregated posterior, highlighting the hierarchical Bayesian treatment of simulation ensembles used in this analysis.
+<div align="center">
+  <img src="figures/posteriors.png" alt="Joint posterior distributions for nonlinear SSD model parameters." width="75%">
+</div>
 
 ---
 

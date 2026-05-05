@@ -86,8 +86,6 @@ uv run python scripts/fit_posteriors/fit_with_mcmc.py \
   [--no-progress]
 ```
 
-Internal helper modules live under `scripts/fit_posteriors/mcmc_routines/` and `scripts/plot_results/`.
-
 ---
 
 ## File Structure

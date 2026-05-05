@@ -235,7 +235,7 @@ class EnsembleAverager:
 def main() -> None:
     script_dir = Path(__file__).parent
     datasets_dir = (script_dir / ".." / ".." / "datasets").resolve()
-    output_summary_path = datasets_dir / "summary_stats.json"
+    output_summary_path = datasets_dir / "suite_fit_posteriors.json"
     base_directory = datasets_dir / "sims"
     all_directories = manage_io.filter_directory(
         base_directory,

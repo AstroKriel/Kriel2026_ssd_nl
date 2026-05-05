@@ -1,6 +1,3 @@
-## dataproducts
-datasets_*/
-
 ## virtual environment directory
 venv/
 
@@ -12,28 +9,17 @@ dist/
 .DS_Store
 __pycache__/
 
-## typical plot outputs
-**.png
-**.pdf
-**.mp4
-**.gif
+## ignore generated dataset products by default
+datasets/**
 
-## figures (tracked)
-!figures/*.pdf
+## reopen directories so git can find the tracked reproducibility inputs
+!datasets/
+!datasets/sims/
+!datasets/sims/**/
 
-## typical data products
-**.csv
-**.dat
-**.json
-**.npy
-**.h5
-
-## dataset summaries (tracked)
-!datasets/summary.json
-!datasets/summary_stats.json
-
-## jupyter notebook (+ LSP) files
-.ipynb_checkpoints/
-.virtual_documents/
+## track reproducibility inputs and suite-level outputs
+!datasets/sims/**/sim_data.json
+!datasets/suite_fit_posteriors.json
+!datasets/suite_scalings.json
 
 ## .

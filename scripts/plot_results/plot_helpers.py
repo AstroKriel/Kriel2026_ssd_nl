@@ -46,7 +46,7 @@ class SuiteStats:
 def load_suite_stats(
     datasets_dir: Path,
 ) -> list[SuiteStats]:
-    raw = json_io.read_json_file_into_dict(datasets_dir / "summary.json")
+    raw = json_io.read_json_file_into_dict(datasets_dir / "suite_scalings.json")
     result = []
     for suite_name, data in raw.items():
         m = data["measured"]

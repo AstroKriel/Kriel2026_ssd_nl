@@ -252,7 +252,7 @@ def build_table(
 
 def main() -> None:
     script_dir = Path(__file__).parent
-    dataset_path = (script_dir / ".." / ".." / "datasets" / "summary_v2.json").resolve()
+    dataset_path = (script_dir / ".." / ".." / "datasets" / "suite_scalings.json").resolve()
     dataset = json_io.read_json_file_into_dict(
         dataset_path,
         verbose=False,

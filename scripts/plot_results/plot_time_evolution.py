@@ -108,7 +108,7 @@ def plot_series(
     for sim_name, sim_instances in sim_collections.items():
         free_fits = all_results.get(sim_name, {}).get("fit_summaries", {}).get("free", {})
         if "bin_per_t0" not in free_fits:
-            print(f"Skipping {sim_name}: no free fit data in summary_stats.json")
+            print(f"Skipping {sim_name}: no free fit data in suite_fit_posteriors.json")
             continue
         Emag_sat = free_fits["bin_per_t0"]["sat_energy"]["p50"]
         biggest_t_min = numpy.max([numpy.min(_sim.time_values) for _sim in sim_instances])
@@ -253,7 +253,7 @@ def main() -> None:
         ),
     )
     manage_io.create_directory(figures_dir)
-    all_results = json_io.read_json_file_into_dict(datasets_dir / "summary_stats.json")
+    all_results = json_io.read_json_file_into_dict(datasets_dir / "suite_fit_posteriors.json")
     palette_Mach = color_palettes.DivergingPalette.from_name(
         palette_name="blue-white-red",
         value_range=(-1.0, 1.0),

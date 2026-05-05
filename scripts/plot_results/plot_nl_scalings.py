@@ -113,7 +113,7 @@ def overlay_scalings(
     model_color = palette.mpl_cmap(0.7)
     ## subsonic growth rate
     subsonic_fit = fit_series.fit_line_with_fixed_slope(
-        series_types.GaussianSeries(
+        gaussian_series=series_types.GaussianSeries(
             x_values=numpy.array(
                 [
                     _suite_stats.log10_Mach.p50
@@ -176,7 +176,7 @@ def overlay_scalings(
     )
     ## universal duration
     duration_fit = fit_series.fit_line_with_fixed_slope(
-        series_types.GaussianSeries(
+        gaussian_series=series_types.GaussianSeries(
             x_values=numpy.array([_suite_stats.log10_Mach.p50 for _suite_stats in suite_stats_list]),
             y_values=numpy.array(
                 [_suite_stats.log10_nl_duration_normed_by_t0.p50 for _suite_stats in suite_stats_list],

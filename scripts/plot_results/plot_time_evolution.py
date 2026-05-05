@@ -117,7 +117,7 @@ def plot_series(
         Emag_matrix_list = []
         for sim_instance in sim_instances:
             interp_result = interpolate_series.interpolate_1d(
-                series_types.DataSeries(
+                data_series=series_types.DataSeries(
                     x_values=sim_instance.time_values,
                     y_values=sim_instance.Emag_values / Emag_sat,
                 ),

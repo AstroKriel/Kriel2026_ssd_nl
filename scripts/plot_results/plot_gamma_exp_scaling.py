@@ -70,7 +70,7 @@ def overlay_scalings(
     rotation_bounds = (X_MIN, X_MAX, Y_MIN, Y_MAX)
     ## subsonic scaling
     subsonic_fit = fit_series.fit_line_with_fixed_slope(
-        series_types.GaussianSeries(
+        gaussian_series=series_types.GaussianSeries(
             x_values=numpy.array(
                 [
                     _suite_stats.log10_Re.p50
@@ -121,7 +121,7 @@ def overlay_scalings(
     )
     ## supersonic scaling
     supersonic_fit = fit_series.fit_line_with_fixed_slope(
-        series_types.GaussianSeries(
+        gaussian_series=series_types.GaussianSeries(
             x_values=numpy.array(
                 [
                     _suite_stats.log10_Re.p50

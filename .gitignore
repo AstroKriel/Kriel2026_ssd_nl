@@ -17,7 +17,7 @@ datasets/**
 !datasets/sims/
 !datasets/sims/**/
 
-## track reproducibility inputs and suite-level outputs
+## track reproducibility inputs and canonical summary outputs
 !datasets/sims/**/sim_data.json
 !datasets/suite_fit_posteriors.json
 !datasets/suite_scalings.json

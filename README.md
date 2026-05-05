@@ -1,8 +1,8 @@
 # Paper Analysis
 
-This repository contains the analysis scripts, tracked summary datasets, and final figures that support the published [paper](#paper).
+This repository contains the analysis scripts, simulation inputs, summary datasets, and final figures that support the published [paper](#paper).
 
-In this proejct we measure the growth-rate of magnetic energy in both subsonic and supersonic small-scale dynamos, and show that ....
+In this project we measure the growth rate of magnetic energy in both subsonic and supersonic small-scale dynamos.
 
 ---
 
@@ -47,6 +47,12 @@ uv run python <path/to/script.py>
 | `datasets/suite_scalings.json` | Produced by the pipeline: growth-rate scalings derived from the aggregated MCMC fit posteriors |
 | `figures/` | Produced by the pipeline: final paper figures |
 
+The JSON files storing suite-level results are tracked, but rerunning the pipeline will overwrite them. Before rerunning the pipeline, keep the local regenerated copies out of `git status` with:
+
+```bash
+git update-index --skip-worktree datasets/suite_fit_posteriors.json datasets/suite_scalings.json
+```
+
 ---
 
 ## Scripts
@@ -55,6 +61,7 @@ These are the main scripts for rerunning the analysis pipeline.
 
 | Script | Purpose |
 |---|---|
+| `scripts/fit_posteriors/fit_with_mcmc.py` | Run one MCMC fit for a simulation instance and nonlinear-phase model |
 | `scripts/fit_posteriors/fit_all_sims.py` | Run missing MCMC fits locally |
 | `scripts/aggregate_stats/extract_mcmc_stats.py` | Rebuild `datasets/suite_fit_posteriors.json` from saved MCMC samples |
 | `scripts/aggregate_stats/print_summary_table.py` | Print the LaTeX table rows from `datasets/suite_scalings.json` |
@@ -63,7 +70,17 @@ These are the main scripts for rerunning the analysis pipeline.
 | `scripts/plot_results/plot_nl_scalings.py` | Generate `figures/nl_scalings.pdf` |
 | `scripts/plot_results/plot_time_evolution.py` | Generate `figures/time_evolution.pdf` |
 
-Helper modules live under `scripts/fit_posteriors/mcmc_routines/` and `scripts/plot_results/`.
+The single-fit command has the form:
+
+```bash
+uv run python scripts/fit_posteriors/fit_with_mcmc.py \
+  --data-directory datasets/sims/<simulation-directory> \
+  --model <free|linear|quadratic> \
+  [--num-bins <number>] \
+  [--no-progress]
+```
+
+Internal helper modules live under `scripts/fit_posteriors/mcmc_routines/` and `scripts/plot_results/`.
 
 ---
 

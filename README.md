@@ -2,8 +2,6 @@
 
 This repository contains the analysis scripts, simulation inputs, summary datasets, and final figures that support the published [paper](#paper).
 
-In this project we measure the growth rate of magnetic energy in both subsonic and supersonic small-scale dynamos.
-
 ---
 
 ## Paper
@@ -17,6 +15,16 @@ In this project we measure the growth rate of magnetic energy in both subsonic a
 | DOI | [`10.1103/8qjf-8gg4`](https://journals.aps.org/pre/abstract/10.1103/8qjf-8gg4) |
 | arXiv | [`2509.09949`](https://arxiv.org/abs/2509.09949) |
 | Summary | [gist.science](https://gist.science/paper/2509.09949?na=1) |
+
+### Abstract
+
+Small-scale dynamos (SSDs) amplify magnetic fields in turbulent plasmas. Theory predicts nonlinear magnetic energy growth $E_\mathrm{mag} \propto t^{p_\mathrm{nl}}$, but this scaling has not been tested across flow regimes. Using a large ensemble of SSD simulations spanning subsonic to supersonic turbulence, we measure linear growth ($p_\mathrm{nl} = 1$) in subsonic flows and quadratic growth ($p_\mathrm{nl} = 2$) in supersonic flows. In all cases, the nonlinear dynamo converts a nearly constant fraction $\sim 1/100$ of the turbulent kinetic energy flux into magnetic energy, and the nonlinear phase has a characteristic duration $\Delta t \approx 20\,t_0$, where $t_0$ is the outer-scale turnover time. By isolating the onset of magnetic backreaction in SSDs, our statistical ensemble approach identifies a robust efficiency and duration for the nonlinear SSD that can be used to interpret more complex astrophysical and laboratory plasmas.
+
+### Posterior Aggregation
+
+![Joint posterior distributions for nonlinear SSD model parameters.](figures/posteriors.png)
+
+Joint posterior distributions for key nonlinear SSD model parameters from six independent realizations of one simulation suite. Individual-realization posteriors are shown as colored contours, while the black point summarizes the aggregated posterior, highlighting the hierarchical Bayesian treatment of simulation ensembles used in this analysis.
 
 ---
 

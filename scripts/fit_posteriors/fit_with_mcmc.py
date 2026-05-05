@@ -7,6 +7,7 @@
 ## stdlib
 import argparse
 from pathlib import Path
+import warnings
 
 ## third-party
 import numpy
@@ -54,13 +55,19 @@ def main() -> None:
         "--no-progress",
         action="store_true",
         default=False,
-        help="Suppress the MCMC progress bar.",
+        help="Suppress progress output and diagnostic plot generation.",
     )
     args = parser.parse_args()
     data_directory = Path(args.data_directory).resolve()
     model_name = args.model
     num_bins = args.num_bins
-    show_progress = not args.no_progress
+    verbose = not args.no_progress
+    show_progress = verbose
+    if not verbose:
+        warnings.filterwarnings(
+            "ignore",
+            category=RuntimeWarning,
+        )
     if num_bins is None:
         binning_notice = "one bin per eddy-turnover time"
         binning_tag = "bin_per_t0"
@@ -72,9 +79,15 @@ def main() -> None:
         print(f"Fitting the {model_name}-model to the nonlinear (backreaction) phase with {binning_notice}.")
     ## read in magnetic energy evolution
     output_directory = data_directory / model_name / binning_tag
-    manage_io.create_directory(output_directory)
+    manage_io.create_directory(
+        output_directory,
+        verbose=verbose,
+    )
     data_filepath = data_directory / "sim_data.json"
-    data_dict = json_io.read_json_file_into_dict(data_filepath)
+    data_dict = json_io.read_json_file_into_dict(
+        data_filepath,
+        verbose=verbose,
+    )
     ## subset the simulation domain: roughly half of the data points should make up the growth phase
     full_time_values = numpy.array(data_dict["time_series"]["time"])
     full_magnetic_energy = numpy.array(data_dict["time_series"]["Emag"])
@@ -109,7 +122,10 @@ def main() -> None:
             initial_params=stage1_initial_params,
             plot_posterior_kde=False,
         )
-        stage1_mcmc.estimate_posterior(show_progress=show_progress)
+        stage1_mcmc.estimate_posterior(
+            show_progress=show_progress,
+            make_plots=verbose,
+        )
         assert stage1_mcmc.fitted_posterior_samples is not None
         stage1_median_transition_time = numpy.median(stage1_mcmc.fitted_posterior_samples[:, 2])
         sat_fraction_of_subset_time = stage1_median_transition_time / max_subset_time
@@ -123,8 +139,9 @@ def main() -> None:
         max_subset_time *= 0.85  # trim off 15% of tail
         if show_progress:
             print(f"Trimmed to {max_subset_time:.2f}, re-running stage 1...")
-    stage1_mcmc.plot_posterior_kde = True
-    stage1_mcmc.make_plots()
+    if verbose:
+        stage1_mcmc.plot_posterior_kde = True
+        stage1_mcmc.make_plots()
     ## extract key outputs from stage 1
     stage2_prior_kde = stage1_mcmc.output_posterior_kde
     ## build initial guess for stage 2
@@ -150,11 +167,15 @@ def main() -> None:
         std_energy_values=binned_data["y_std_s"],
         initial_params=stage2_initial_params,
         prior_kde=stage2_prior_kde,
-        plot_posterior_kde=True,
+        plot_posterior_kde=verbose,
     )
-    stage2_mcmc.estimate_posterior(show_progress=show_progress)
+    stage2_mcmc.estimate_posterior(
+        show_progress=show_progress,
+        make_plots=verbose,
+    )
     ## plot the measured vs modelled energy evolution (both linear and log10-transformed energy)
-    PlotFinalFits(stage2_mcmc).plot()
+    if verbose:
+        PlotFinalFits(stage2_mcmc).plot()
 
 
 ##

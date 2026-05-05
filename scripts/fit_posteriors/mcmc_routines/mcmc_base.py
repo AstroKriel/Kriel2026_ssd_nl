@@ -150,6 +150,7 @@ class BaseMCMCRoutine(ABC):
         num_steps: int = 10_000,
         burn_in_steps: int = 3_000,
         show_progress: bool = True,
+        make_plots: bool = True,
     ) -> None:
         """Run the MCMC sampler and populate the posterior attributes."""
         if self.initial_params is None:
@@ -230,7 +231,8 @@ class BaseMCMCRoutine(ABC):
                 bw_method="scott",
             )
         ## create diagnostic outputs
-        self.make_plots()
+        if make_plots:
+            self.make_plots()
         self._save_posterior_samples()
 
     def _log_posterior(

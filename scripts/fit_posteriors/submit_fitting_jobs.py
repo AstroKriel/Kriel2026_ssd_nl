@@ -5,8 +5,8 @@
 ##
 
 ## stdlib
+from dataclasses import dataclass
 from pathlib import Path
-from typing import TypedDict
 
 ## personal
 from jormi.ww_io import manage_io
@@ -27,7 +27,8 @@ UV_PROJECT = (SCRIPT_DIR / ".." / "..").resolve()
 SIMS_DIR = (SCRIPT_DIR / ".." / ".." / "datasets" / "sims").resolve()
 
 
-class BinningConfig(TypedDict):
+@dataclass(frozen=True)
+class BinningConfig:
     tag: str
     num_bins: int | None
 
@@ -38,14 +39,14 @@ MODEL_TYPES = [
     "quadratic",
 ]
 BINNING_CONFIGS: list[BinningConfig] = [
-    {
-        "tag": "bin_per_t0",
-        "num_bins": None,
-    },
-    {
-        "tag": "100bins",
-        "num_bins": 100,
-    },
+    BinningConfig(
+        tag="bin_per_t0",
+        num_bins=None,
+    ),
+    BinningConfig(
+        tag="100bins",
+        num_bins=100,
+    ),
 ]
 
 ##
@@ -82,11 +83,11 @@ def submit_job(
         return
     fitting_cmd_parts = [
         f"uv run --project {UV_PROJECT} python fit_with_mcmc.py",
-        f"-data_directory {data_directory}",
-        f"-model {model_name}",
+        f"--data-directory {data_directory}",
+        f"--model {model_name}",
     ]
     if num_bins is not None:
-        fitting_cmd_parts.append(f"-num_bins {num_bins}")
+        fitting_cmd_parts.append(f"--num-bins {num_bins}")
     main_command = f"cd {SCRIPT_DIR} && " + " ".join(fitting_cmd_parts)
     file_name = f"{tag_name}.sh"
     pbs_manager.create_pbs_job_script(
@@ -125,7 +126,7 @@ def main() -> None:
                     data_directory=sim_directory,
                     model_name=model_name,
                     queued_job_tags=queued_job_tags,
-                    num_bins=binning_config["num_bins"],
+                    num_bins=binning_config.num_bins,
                 )
 
 

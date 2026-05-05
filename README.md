@@ -6,7 +6,7 @@ This repository contains the analysis scripts, simulation inputs, summary datase
 
 ## Paper
 
-| Field | Value |
+| | |
 |---|---|
 | Title | `The growth of magnetic energy during the nonlinear phase of the subsonic and supersonic small-scale dynamo` |
 | Authors | Neco Kriel, James R. Beattie, Mark R. Krumholz, Jennifer Schober, Patrick J. Armstrong |

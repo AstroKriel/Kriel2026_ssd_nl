@@ -20,10 +20,10 @@ StatsBlock: TypeAlias = dict[str, float]
 SuiteStats: TypeAlias = dict[str, dict[str, float | StatsBlock]]
 SuiteDataset: TypeAlias = dict[str, SuiteStats]
 
-
 ##
 ## === HELPER FUNCTIONS
 ##
+
 
 def compute_scientific_basis(
     value: float,

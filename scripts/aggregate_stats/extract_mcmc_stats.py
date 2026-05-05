@@ -263,16 +263,12 @@ def main() -> None:
     output_summary_path = datasets_dir / "suite_fit_posteriors.json"
     base_directory = datasets_dir / "sims"
     all_directories = [
-        Path(sim_directory)
-        for sim_directory in manage_io.filter_directory(
+        Path(sim_directory) for sim_directory in manage_io.filter_directory(
             base_directory,
             req_include_words=["Mach", "Re", "Pm", "Nres"],
         )
     ]
-    sim_suites = {
-        sim_directory.name.split("v")[0]
-        for sim_directory in all_directories
-    }
+    sim_suites = {sim_directory.name.split("v")[0] for sim_directory in all_directories}
     all_results: dict[str, EnsembleResult] = {}
     for sim_suite in sorted(sim_suites):
         directories_in_suite = [

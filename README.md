@@ -1,10 +1,6 @@
 # Paper Analysis Pipeline
 
-This repository contains the analysis scripts, simulation inputs, summary datasets, and final figures that support the published [paper](#paper).
-
----
-
-## Paper
+This repository contains the analysis scripts, simulation inputs, summary datasets, and final figures that support the following published paper.
 
 | | |
 |---|---|

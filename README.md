@@ -70,7 +70,7 @@ These are the main scripts for rerunning the analysis pipeline.
 | `scripts/fit_posteriors/fit_with_mcmc.py` | Run one MCMC fit for a simulation instance and nonlinear-phase model |
 | `scripts/fit_posteriors/fit_all_sims.py` | Run missing MCMC fits locally |
 | `scripts/aggregate_stats/extract_mcmc_stats.py` | Rebuild `datasets/suite_fit_posteriors.json` from saved MCMC samples |
-| `scripts/aggregate_stats/print_summary_table.py` | Print the LaTeX table rows from `datasets/suite_scalings.json` |
+| `scripts/aggregate_stats/print_summary_table.py` | Print the LaTeX-formatted table based on `datasets/suite_scalings.json` |
 | `scripts/plot_results/plot_gamma_exp_scaling.py` | Generate `figures/gamma_exp_scaling.pdf` |
 | `scripts/plot_results/plot_nl_exponent.py` | Generate `figures/nl_exponent.pdf` |
 | `scripts/plot_results/plot_nl_scalings.py` | Generate `figures/nl_scalings.pdf` |

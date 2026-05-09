@@ -13,8 +13,11 @@ import warnings
 import numpy
 
 ## personal
-from jormi.ww_io import json_io
-from jormi.ww_io import manage_io
+from jormi.ww_io import (
+    json_io,
+    manage_io,
+    manage_log,
+)
 
 ## local
 from mcmc_routines.mcmc_stage_1 import Stage1MCMCRoutine
@@ -32,6 +35,7 @@ from mcmc_routines.plot_final_fits import PlotFinalFits
 
 
 def main() -> None:
+    manage_log.set_block_width_mode(manage_log.BlockWidthMode.PRACTICAL)
     ## collect user arguments
     parser = argparse.ArgumentParser(description="Run MCMC fitting routine.")
     parser.add_argument(
@@ -124,7 +128,7 @@ def main() -> None:
         )
         stage1_mcmc.estimate_posterior(
             show_progress=show_progress,
-            make_plots=verbose,
+            make_plots=False,  # plots are generated after the loop
         )
         assert stage1_mcmc.fitted_posterior_samples is not None
         stage1_median_transition_time = numpy.median(stage1_mcmc.fitted_posterior_samples[:, 2])
@@ -139,9 +143,8 @@ def main() -> None:
         max_subset_time *= 0.85  # trim off 15% of tail
         if show_progress:
             print(f"Trimmed to {max_subset_time:.2f}, re-running stage 1...")
-    if verbose:
-        stage1_mcmc.plot_posterior_kde = True
-        stage1_mcmc.make_plots()
+    stage1_mcmc.plot_posterior_kde = True
+    stage1_mcmc.make_plots()
     ## extract key outputs from stage 1
     stage2_prior_kde = stage1_mcmc.output_posterior_kde
     ## build initial guess for stage 2
@@ -171,11 +174,10 @@ def main() -> None:
     )
     stage2_mcmc.estimate_posterior(
         show_progress=show_progress,
-        make_plots=verbose,
+        make_plots=True,
     )
     ## plot the measured vs modelled energy evolution (both linear and log10-transformed energy)
-    if verbose:
-        PlotFinalFits(stage2_mcmc).plot()
+    PlotFinalFits(stage2_mcmc).plot()
 
 
 ##

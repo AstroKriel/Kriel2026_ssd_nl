@@ -126,8 +126,6 @@ class Stage1MCMCRoutine(mcmc_base.BaseMCMCRoutine):
                 for param_name, param_valid_mask in invalid_params
             ]
             print(f"[Stage1] invalid parameters: {', '.join(message_parts)}")
-        if num_local_walkers == 1:
-            return valid_params_mask[0]
         return valid_params_mask
 
     def _annotate_fitted_params(

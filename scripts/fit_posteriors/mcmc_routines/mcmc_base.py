@@ -17,9 +17,6 @@ from tqdm import tqdm
 from scipy.stats import gaussian_kde
 from numpy.typing import NDArray
 
-## personal
-from jormi.ww_io import manage_io
-
 ## local
 from . import plot_chain_evolution
 from . import plot_model_posteriors
@@ -71,14 +68,14 @@ class BaseMCMCRoutine(ABC):
     def _annotate_fitted_params(
         self,
         *,
-        axs: Any,
+        axs: Any,  # pyright: ignore[reportUnusedParameter]
     ) -> None:
         pass
 
     def _annotate_output_params(
         self,
         *,
-        axs: Any,
+        axs: Any,  # pyright: ignore[reportUnusedParameter]
     ) -> None:
         pass
 
@@ -104,7 +101,7 @@ class BaseMCMCRoutine(ABC):
         fitted_param_labels: list[str] | None = None,
     ) -> None:
         self.routine_name: str = routine_name
-        self.output_directory: str | Path = output_directory
+        self.output_directory: Path = Path(output_directory)
         self.x_values: NDArray[Any] = numpy.asarray(x_values)
         self.y_values: NDArray[Any] = numpy.asarray(y_values)
         self.likelihood_sigma: list[Any] | NDArray[Any] = likelihood_sigma
@@ -170,11 +167,11 @@ class BaseMCMCRoutine(ABC):
             self.num_walkers,
             self.num_params,
         )
-        ## run sampler
+
         mcmc_sampler = emcee.EnsembleSampler(
             nwalkers=self.num_walkers,
             ndim=self.num_params,
-            log_prob_fn=lambda p: self._log_posterior(param_vectors=p),
+            log_prob_fn=self._log_posterior,
             vectorize=True,
         )
         _ = deque(
@@ -237,7 +234,6 @@ class BaseMCMCRoutine(ABC):
 
     def _log_posterior(
         self,
-        *,
         param_vectors: NDArray[Any],
     ) -> NDArray[Any]:
         lp_values = self._log_prior(param_vectors=param_vectors)

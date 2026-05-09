@@ -12,7 +12,6 @@ import numpy
 
 ## personal
 from jormi.ww_plots import manage_plots
-from jormi.ww_io import manage_io
 
 ##
 ## === PLOTTING ROUTINE

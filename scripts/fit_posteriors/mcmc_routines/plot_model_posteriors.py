@@ -13,18 +13,15 @@ from numpy.typing import NDArray
 
 ## personal
 from jormi import ww_lists
-from jormi.ww_io import manage_io
 from jormi.ww_arrays import compute_array_stats
 from jormi.ww_plots import manage_plots
-from jormi.ww_types import box_positions
 
 ##
 ## === HELPER DATA CLASS
 ##
 
 
-class KDEProjectionParams(
-        NamedTuple, ):
+class KDEProjectionParams(NamedTuple):
     posterior_samples: NDArray[Any]
     posterior_kde: Callable[[NDArray[Any]], NDArray[Any]]
     param_ranges: list[tuple[float, float]]
@@ -65,6 +62,10 @@ class PlotModelPosteriors:
         self,
     ) -> None:
         """Produce and save corner plots for both fitted and output posteriors."""
+        assert self.fitted_posterior_samples is not None
+        assert self.fitted_posterior_kde is not None
+        assert self.output_posterior_samples is not None
+        assert self.output_posterior_kde is not None
         self._plot_posteriors(
             posterior_samples=self.fitted_posterior_samples,
             posterior_kde=self.fitted_posterior_kde,
@@ -120,8 +121,8 @@ class PlotModelPosteriors:
                     ax.axis("off")
         self._annotate_plot(
             axs=axs,
-            param_ranges=param_ranges,
             param_labels=param_labels,
+            _param_ranges=param_ranges,
         )
         if self.plot_posterior_kde:
             self._plot_kde_projections(
@@ -199,11 +200,7 @@ class PlotModelPosteriors:
             param_min = bin_centers[index_start]
         range_width = param_max - param_min
         padding = 2.5 / 100 * range_width
-        padded_range = (
-            param_min - padding,
-            param_max + padding,
-        )
-        return padded_range
+        return (float(param_min - padding), float(param_max + padding))
 
     def _plot_jpdf(
         self,
@@ -239,7 +236,7 @@ class PlotModelPosteriors:
         *,
         axs: Any,
         param_labels: list[str],
-        param_ranges: list[tuple[float, float]] | None = None,
+        _param_ranges: list[tuple[float, float]] | None = None,
     ) -> None:
         for row_index in range(self.num_params):
             for col_index in range(self.num_params):
@@ -247,15 +244,15 @@ class PlotModelPosteriors:
                 if col_index > row_index:
                     continue
                 if row_index == col_index:
-                    # ax.set_xlim(param_ranges[row_index][0], param_ranges[row_index][1]) # debug
+                    # ax.set_xlim(_param_ranges[row_index][0], _param_ranges[row_index][1]) # debug
                     if col_index > 0:
                         ax.tick_params(
                             axis="y",
                             labelright=True,
                         )
                 else:
-                    # ax.set_xlim(param_ranges[col_index][0], param_ranges[col_index][1]) # debug
-                    # ax.set_ylim(param_ranges[row_index][0], param_ranges[row_index][1]) # debug
+                    # ax.set_xlim(_param_ranges[col_index][0], _param_ranges[col_index][1]) # debug
+                    # ax.set_ylim(_param_ranges[row_index][0], _param_ranges[row_index][1]) # debug
                     if col_index == 0:
                         ax.set_ylabel(param_labels[row_index])
                     if col_index > 0:

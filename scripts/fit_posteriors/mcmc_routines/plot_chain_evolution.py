@@ -11,7 +11,6 @@ from typing import Any, final
 import numpy
 
 ## personal
-from jormi.ww_io import manage_io
 from jormi.ww_plots import annotate_axis
 from jormi.ww_plots import manage_plots
 from jormi.ww_types import box_positions

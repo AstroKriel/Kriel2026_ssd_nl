@@ -5,6 +5,7 @@
 ##
 
 ## stdlib
+from pathlib import Path
 from typing import Any
 
 ## third-party
@@ -32,11 +33,11 @@ class Stage2MCMCRoutine(
     def __init__(
         self,
         *,
-        output_directory: str,
+        output_directory: str | Path,
         time_values: list[Any] | NDArray[Any],
         ave_energy_values: list[Any] | NDArray[Any],
         std_energy_values: list[Any] | NDArray[Any],
-        initial_params: tuple[float, float, float, float] | None = None,
+        initial_params: tuple[float, ...] | None = None,
         prior_kde: gaussian_kde | None = None,
         plot_posterior_kde: bool = True,
         fixed_nl_exponent: float | None = None,
@@ -94,11 +95,9 @@ class Stage2MCMCRoutine(
         ave_energy_values: list[Any] | NDArray[Any],
         max_num_bins: int = 100,
     ) -> float:
-        self.max_sim_time: float = float(
-            numpy.max(
-                time_values,
-            ),
-        )
+        time_values = numpy.asarray(time_values)
+        ave_energy_values = numpy.asarray(ave_energy_values)
+        self.max_sim_time: float = float(numpy.max(time_values))
         if len(time_values) > max_num_bins:
             time_bin_edges = numpy.linspace(
                 numpy.min(time_values),
@@ -139,6 +138,8 @@ class Stage2MCMCRoutine(
             values=[float(value) for value in dlny_dt],
             target=0,
         )
+        if max_sat_time_index is None:
+            raise ValueError("Could not find saturation crossing in dlny_dt.")
         self.max_sat_time: float = float(used_time_values[max_sat_time_index])
         ## define max time to transition into non-linear phase
         ## note, make sure this happens before the saturated phase
@@ -152,6 +153,8 @@ class Stage2MCMCRoutine(
             values=[float(value) for value in dy_dt[:max_sat_time_index]],
             target=target_dy_dt,
         )
+        if max_nl_time_index is None:
+            raise ValueError("Could not find nonlinear transition crossing in dy_dt.")
         self.max_nl_time: float = float(used_time_values[max_nl_time_index])
         ## construct a valid guess for the transition time into the saturated phase
         guess_sat_time = self.max_nl_time + 0.5 * (self.max_sat_time - self.max_nl_time)
@@ -265,8 +268,6 @@ class Stage2MCMCRoutine(
                 for param_name, param_valid_mask in invalid_params
             ]
             print(f"[Stage2] invalid parameters: {', '.join(message_parts)}")
-        if num_local_walkers == 1:
-            return valid_params_mask[0]
         return valid_params_mask
 
     def _get_kde_params(

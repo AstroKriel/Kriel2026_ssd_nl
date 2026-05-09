@@ -12,7 +12,6 @@ import numpy
 
 ## personal
 from jormi.ww_plots import manage_plots
-from jormi.ww_io import manage_io
 from jormi.ww_types import box_positions
 
 ##
@@ -44,6 +43,7 @@ class PlotModelFits:
         self,
     ) -> None:
         """Produce and save the diagnostic fit figure."""
+        assert self.fitted_posterior_samples is not None
         fig, axs = manage_plots.create_figure(
             num_rows=3,
             num_cols=1,

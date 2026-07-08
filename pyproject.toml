@@ -13,11 +13,14 @@ dependencies = [
   "scipy>=1.15.2",
 ]
 
+[dependency-groups]
+dev = ["basedpyright>=1.0"]
+
 [tool.uv.sources]
 jormi = { git = "https://github.com/AstroKriel/PythonHelpers.git", rev = "bc37ef365de97b14b10b38510001180c552572d7" }
 
 
-[tool.pyright]
+[tool.basedpyright]
 include = ["scripts"]
 reportExplicitAny = "none"  # basedpyright-specific: flags every `Any`; unavoidable in numpy/scipy code
 reportAny = "none"  # basedpyright-specific: noisy cascade of the above
